@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Asurion 排班分析工具 - 自動計算請假、加班統計報表">
+    <title>Asurion 排班分析工具</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <h1 class="header-title">Asurion 排班分析工具</h1>
+        <p class="header-subtitle">自動計算請假、加班統計</p>
+    </header>
+
+    <!-- Upload Section -->
+    <section class="upload-section">
+        <div class="upload-card" data-type="leave">
+            <div class="drop-zone">
+                <div class="drop-icon">📋</div>
+                <div class="drop-text">拖拽檔案到此處</div>
+                <div class="drop-subtext">或點擊選擇 .xlsx 檔案</div>
+            </div>
+            <input type="file" class="file-input" accept=".xlsx,.xls" hidden>
+            <div class="file-status">
+                <span class="file-status-icon">✓</span>
+                <span class="file-status-name"></span>
+            </div>
+            <div class="card-label">
+                <span class="card-label-icon">📋</span>
+                <span class="card-label-title">請假申請表</span>
+                <span class="card-label-subtitle">上傳請假原始數據</span>
+            </div>
+        </div>
+
+        <div class="upload-card" data-type="overtime">
+            <div class="drop-zone">
+                <div class="drop-icon">⏰</div>
+                <div class="drop-text">拖拽檔案到此處</div>
+                <div class="drop-subtext">或點擊選擇 .xlsx 檔案</div>
+            </div>
+            <input type="file" class="file-input" accept=".xlsx,.xls" hidden>
+            <div class="file-status">
+                <span class="file-status-icon">✓</span>
+                <span class="file-status-name"></span>
+            </div>
+            <div class="card-label">
+                <span class="card-label-icon">⏰</span>
+                <span class="card-label-title">加班申請表</span>
+                <span class="card-label-subtitle">上傳加班原始數據</span>
+            </div>
+        </div>
+
+        <div class="upload-card" data-type="schedule">
+            <div class="drop-zone">
+                <div class="drop-icon">📅</div>
+                <div class="drop-text">拖拽檔案到此處</div>
+                <div class="drop-subtext">或點擊選擇 .xlsx 檔案</div>
+            </div>
+            <input type="file" class="file-input" accept=".xlsx,.xls" hidden>
+            <div class="file-status">
+                <span class="file-status-icon">✓</span>
+                <span class="file-status-name"></span>
+            </div>
+            <div class="card-label">
+                <span class="card-label-icon">📅</span>
+                <span class="card-label-title">排班表</span>
+                <span class="card-label-subtitle">上傳排班班表</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- Detected Info -->
+    <div id="detected-info" class="detected-info" style="display: none;">
+        <span class="detected-icon">📆</span>
+        <span class="detected-text"></span>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="btn-container">
+        <button id="btn-analyze" disabled>🔍 開始分析</button>
+        <button id="btn-download" style="display: none;">📥 下載所有報表</button>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" style="display: none;">
+        <div class="loading-content">
+            <div class="spinner"></div>
+            <p class="loading-text">分析中...</p>
+        </div>
+    </div>
+
+    <!-- Results Section -->
+    <section id="results-section" style="display: none;">
+        <div class="tab-bar">
+            <button class="tab-btn active" data-tab="leave">📋 請假統計</button>
+            <button class="tab-btn" data-tab="overtime">⏰ 加班統計</button>
+            <button class="tab-btn" data-tab="total">📊 總請假統計</button>
+            <button class="tab-btn" data-tab="pto">🏖 特休日數</button>
+        </div>
+        <div class="tab-content-area">
+            <div id="tab-leave" class="tab-content active"></div>
+            <div id="tab-overtime" class="tab-content"></div>
+            <div id="tab-total" class="tab-content"></div>
+            <div id="tab-pto" class="tab-content"></div>
+        </div>
+    </section>
+
+    <!-- Toast Container -->
+    <div id="toast-container"></div>
+
+    <script src="app.js"></script>
+</body>
+</html>
