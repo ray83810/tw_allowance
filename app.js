@@ -498,6 +498,9 @@ function calculateAll() {
     const empName = getCanonicalName(rec.applicant, allEmployees);
     if (!allEmployees.includes(empName)) continue;
 
+    const year = parseInt(rec.monthKey.split('-')[0]);
+    if (year !== scheduleYear) continue;
+
     const typeInfo = LEAVE_TYPE_MAP[rec.leaveType];
     if (!typeInfo) continue;
 
@@ -514,6 +517,8 @@ function calculateAll() {
   for (const rec of otRecords) {
     const empName = getCanonicalName(rec.applicant, allEmployees);
     if (!allEmployees.includes(empName)) continue;
+
+    if (rec.dateKey !== targetMonthKey) continue;
 
     const dateStr = formatLocalDate(rec.otDate);
     otDates.add(dateStr);
@@ -536,6 +541,9 @@ function calculateAll() {
   for (const rec of leaveRecords) {
     const empName = getCanonicalName(rec.applicant, allEmployees);
     if (!allEmployees.includes(empName)) continue;
+
+    const year = parseInt(rec.monthKey.split('-')[0]);
+    if (year !== scheduleYear) continue;
 
     const typeInfo = LEAVE_TYPE_MAP[rec.leaveType];
     if (!typeInfo || !totalStats[empName]) continue;
@@ -562,6 +570,9 @@ function calculateAll() {
   for (const rec of leaveRecords) {
     const empName = getCanonicalName(rec.applicant, allEmployees);
     if (!allEmployees.includes(empName)) continue;
+
+    const year = parseInt(rec.monthKey.split('-')[0]);
+    if (year !== scheduleYear) continue;
 
     const typeInfo = LEAVE_TYPE_MAP[rec.leaveType];
     if (!typeInfo) continue;
@@ -1295,8 +1306,22 @@ async function handleFile(file, expectedType, card) {
     if (state.parsed.scheduleMonth && state.parsed.scheduleYear) {
       const info = document.getElementById('detected-info');
       info.style.display = 'flex';
-      info.innerHTML = `<span class="info-icon">📅</span> 偵測到月份：<strong>${state.parsed.scheduleYear} 年 ${state.parsed.scheduleMonth} 月</strong>
-        <span class="info-detail">（員工：${state.parsed.employees.length} 人 | 請假記錄：${state.parsed.leave.length} 筆 | 加班記錄：${state.parsed.overtime.length} 筆）</span>`;
+      
+      const currentYear = state.parsed.scheduleYear;
+      const currentMonth = state.parsed.scheduleMonth;
+      const targetMonthKey = `${currentYear}-${String(currentMonth).padStart(2, '0')}`;
+      
+      const yearLeaves = state.parsed.leave.filter(rec => {
+        const year = parseInt(rec.monthKey.split('-')[0]);
+        return year === currentYear;
+      }).length;
+      
+      const monthOvertimes = state.parsed.overtime.filter(rec => {
+        return rec.dateKey === targetMonthKey;
+      }).length;
+      
+      info.innerHTML = `<span class="info-icon">📅</span> 偵測到月份：<strong>${currentYear} 年 ${currentMonth} 月</strong>
+        <span class="info-detail">（員工：${state.parsed.employees.length} 人 | ${currentYear} 年請假記錄：${yearLeaves} 筆 | 當月加班記錄：${monthOvertimes} 筆）</span>`;
     }
 
     showToast(`${file.name} 載入成功`, 'success');
