@@ -17,7 +17,7 @@ def get_canonical_name(name):
     if not name:
         return ''
     name_clean = str(name).strip().replace(' ', '').lower()
-    if 'ding' in name_clean and ('kai' in name_clean or 'jian' in name_clean or 'jlian' in name_clean):
+    if ('ding' in name_clean or 'din' in name_clean) and ('kai' in name_clean or 'jian' in name_clean or 'jlian' in name_clean):
         return 'Jian Kai Ding'
     
     # Try match
@@ -55,42 +55,101 @@ def test_verification():
     sched_employees = sorted(list(set(sched_employees)))
     print('Schedule employees:', sched_employees)
 
-    # Parse leave data
-    leave_sheet = leave_wb['請假原始檔']
-    leave_records = []
-    for r in range(2, leave_sheet.max_row+1):
-        applicant = leave_sheet.cell(r, 6).value
-        ltype = leave_sheet.cell(r, 7).value
-        mval = leave_sheet.cell(r, 8).value
-        days = leave_sheet.cell(r, 11).value
-        if applicant and ltype:
-            name = get_canonical_name(applicant)
-            if mval:
-                if isinstance(mval, str):
-                    m = int(mval.split('-')[1])
-                else:
-                    m = mval.month
-            else:
-                m = 0
-            leave_records.append({'name': name, 'type': ltype, 'month': m, 'days': float(days or 0)})
+    # Parse combined data from 班表相關申請表單(1-737).xlsx
+    comb_wb = openpyxl.load_workbook(os.path.join(folder, '班表相關申請表單(1-737).xlsx'), data_only=True)
+    comb_sheet = comb_wb['Sheet1']
 
-    # Parse OT data
-    ot_sheet = ot_wb['加班原始數據']
+    def normalize_leave_type(ltype):
+        if not ltype:
+            return ''
+        ltype = str(ltype).strip()
+        if '特別休假' in ltype or 'Annual Leave' in ltype or ('PTO' in ltype and 'PTO-AL' not in ltype):
+            return 'Annual Leave特別休假'
+        if '亞勝' in ltype or 'Asurion Leave' in ltype or 'PTO-AL' in ltype:
+            return 'Asurion Leave亞勝假期'
+        if '生理假' in ltype or 'Menstrual' in ltype:
+            return 'Menstrual Leave病假（生理假)'
+        if '病假' in ltype or 'Sick' in ltype:
+            return 'Sick Leave病假'
+        if '事假' in ltype or 'Personal' in ltype:
+            return 'Personal Leave事假'
+        if '金融市場' in ltype:
+            return 'Official Leave公假（金融市場常識與職業道德考試）'
+        if '財產保險' in ltype:
+            return 'Official Leave公假（財產保險業務員資格證照考試)'
+        if '健檢' in ltype:
+            return 'Official Leave公假（健檢)'
+        if '公假' in ltype or 'Official' in ltype:
+            return 'Official Leave公假'
+        if '婚假' in ltype or 'Marriage' in ltype:
+            return 'Marriage Leave婚假'
+        if '喪假' in ltype or 'Bereavement' in ltype:
+            return 'Bereavement Leave喪假'
+        if '家庭' in ltype or 'Family' in ltype:
+            return 'Family Care Leave家庭照顧假'
+        return ltype
+
+    leave_records = []
     ot_records = []
-    for r in range(2, ot_sheet.max_row+1):
-        applicant = ot_sheet.cell(r, 6).value
-        date_val = ot_sheet.cell(r, 8).value
-        hours = ot_sheet.cell(r, 12).value
-        approved = ot_sheet.cell(r, 16).value
-        if applicant and date_val:
-            name = get_canonical_name(applicant)
-            if approved == 'Approved':
-                # Date parsing
+
+    for r in range(2, comb_sheet.max_row+1):
+        applicant = comb_sheet.cell(r, 6).value
+        form_type = comb_sheet.cell(r, 7).value
+        if not applicant or not form_type:
+            continue
+            
+        name = get_canonical_name(applicant)
+        form_type = str(form_type).strip()
+        
+        # Overtime
+        if form_type.startswith('加班') or form_type == '加班申請表':
+            date_val = comb_sheet.cell(r, 15).value # Column O
+            hours = comb_sheet.cell(r, 19).value # Column S
+            if date_val and hours:
                 if isinstance(date_val, datetime):
                     dt_str = date_val.strftime('%Y-%m-%d')
+                    m = date_val.month
+                    y = date_val.year
                 else:
                     dt_str = str(date_val).split()[0]
-                ot_records.append({'name': name, 'date': dt_str, 'hours': float(hours or 0)})
+                    pts = dt_str.split('-')
+                    y = int(pts[0])
+                    m = int(pts[1])
+                
+                if y == 2026 and m == 5:
+                    ot_records.append({'name': name, 'date': dt_str, 'hours': float(hours or 0)})
+                    
+        # Leave
+        elif (form_type.startswith('請假') or form_type.startswith('長假') or form_type.startswith('公假')) and '(事前申請)' not in form_type:
+            ltype = ''
+            start_date = None
+            days = 0
+            
+            if form_type.startswith('請假'):
+                ltype = normalize_leave_type(comb_sheet.cell(r, 8).value) # Column H
+                start_date = comb_sheet.cell(r, 9).value # Column I
+                days = comb_sheet.cell(r, 11).value # Column K
+            elif form_type.startswith('長假'):
+                ltype = normalize_leave_type(comb_sheet.cell(r, 29).value) # Column AC
+                start_date = comb_sheet.cell(r, 26).value # Column Z
+                days = comb_sheet.cell(r, 28).value # Column AB
+            elif form_type.startswith('公假'):
+                ltype = 'Official Leave公假'
+                start_date = comb_sheet.cell(r, 30).value # Column AD
+                days = 1
+                
+            if ltype and start_date:
+                if isinstance(start_date, datetime):
+                    m = start_date.month
+                    y = start_date.year
+                else:
+                    dt_str = str(start_date).split()[0]
+                    pts = dt_str.split('-')
+                    y = int(pts[0])
+                    m = int(pts[1])
+                
+                if y == 2026 and m <= 5:
+                    leave_records.append({'name': name, 'type': ltype, 'month': m, 'days': float(days or 0)})
 
     # Calculate leave stats for May
     may_leave_stats = {}

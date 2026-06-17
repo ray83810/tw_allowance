@@ -4,8 +4,8 @@
 
 // ==================== 全域狀態 ====================
 const state = {
-  files: { leave: null, overtime: null, schedule: null },
-  workbooks: { leave: null, overtime: null, schedule: null },
+  files: { application: null, schedule: null },
+  workbooks: { application: null, schedule: null },
   parsed: { leave: [], overtime: [], employees: [], ptoData: [], holidays: [], scheduleMonth: null, scheduleYear: null, scheduleSheet: null },
   results: null
 };
@@ -181,69 +181,180 @@ function showToast(message, type = 'success') {
   setTimeout(() => { toast.classList.add('exit'); setTimeout(() => toast.remove(), 400); }, 3000);
 }
 
+// ==================== 假別字串規整 ====================
+function normalizeLeaveType(type) {
+  if (!type) return '';
+  type = String(type).trim();
+  if (type.includes('特別休假') || type.includes('Annual Leave') || (type.includes('PTO') && !type.includes('PTO-AL'))) {
+    return 'Annual Leave特別休假';
+  }
+  if (type.includes('亞勝') || type.includes('Asurion Leave') || type.includes('PTO-AL')) {
+    return 'Asurion Leave亞勝假期';
+  }
+  if (type.includes('生理假') || type.includes('Menstrual')) {
+    return 'Menstrual Leave病假（生理假)';
+  }
+  if (type.includes('病假') || type.includes('Sick')) {
+    return 'Sick Leave病假';
+  }
+  if (type.includes('事假') || type.includes('Personal')) {
+    return 'Personal Leave事假';
+  }
+  if (type.includes('金融市場')) {
+    return 'Official Leave公假（金融市場常識與職業道德考試）';
+  }
+  if (type.includes('財產保險')) {
+    return 'Official Leave公假（財產保險業務員資格證照考試)';
+  }
+  if (type.includes('健檢')) {
+    return 'Official Leave公假（健檢)';
+  }
+  if (type.includes('公假') || type.includes('Official')) {
+    return 'Official Leave公假';
+  }
+  if (type.includes('婚假') || type.includes('Marriage')) {
+    return 'Marriage Leave婚假';
+  }
+  if (type.includes('喪假') || type.includes('Bereavement')) {
+    return 'Bereavement Leave喪假';
+  }
+  if (type.includes('家庭') || type.includes('Family')) {
+    return 'Family Care Leave家庭照顧假';
+  }
+  return type;
+}
+
 // ==================== 檔案偵測 ====================
 function detectFileType(wb) {
   const sheets = wb.SheetNames;
-  if (sheets.includes('請假原始檔') || sheets.includes('請假整理')) return 'leave';
-  if (sheets.includes('加班原始數據') || sheets.includes('加班整理')) return 'overtime';
-  if (sheets.some(s => /\d{6}/.test(s)) || sheets.includes('特休日數') || sheets.includes('特休') || sheets.includes('國定假日') || sheets.includes('排班')) return 'schedule';
+  if (sheets.some(s => /\d{6}/.test(s)) || sheets.includes('特休日數') || sheets.includes('特休') || sheets.includes('國定假日') || sheets.includes('排班')) {
+    return 'schedule';
+  }
+  if (sheets.includes('Sheet1') || sheets.includes('班表相關申請表單') || sheets.includes('請假原始檔') || sheets.includes('加班原始數據')) {
+    return 'application';
+  }
   return null;
 }
 
-// ==================== 解析請假原始數據 ====================
-function parseLeaveData(wb) {
-  const ws = wb.Sheets['請假原始檔'];
-  if (!ws) return [];
-
+// ==================== 解析申請表單數據 (包含請假與加班) ====================
+function parseLeaveSheet(ws) {
   const data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
   if (data.length < 2) return [];
-
   const records = [];
   for (let i = 1; i < data.length; i++) {
     const row = data[i];
-    if (!row || !row[5]) continue; // skip empty rows (check 申請人)
-
+    if (!row || !row[5]) continue;
     const applicant = normalizeName(row[5]);
-    const leaveType = String(row[6] || '').trim();
+    const leaveType = normalizeLeaveType(row[6]);
     const monthDate = parseExcelDate(row[7]);
     const startDate = parseExcelDate(row[8]);
     const endDate = parseExcelDate(row[9]);
     const days = toNum(row[10]);
     const timeRange = String(row[11] || '');
-
     if (!applicant || !leaveType || !monthDate) continue;
-
     records.push({ applicant, leaveType, monthDate, startDate, endDate, days, timeRange, monthKey: getMonthKey(monthDate) });
   }
-
   return records;
 }
 
-// ==================== 解析加班原始數據 ====================
-function parseOvertimeData(wb) {
-  const ws = wb.Sheets['加班原始數據'];
-  if (!ws) return [];
-
+function parseOvertimeSheet(ws) {
   const data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
   if (data.length < 2) return [];
-
   const records = [];
   for (let i = 1; i < data.length; i++) {
     const row = data[i];
     if (!row || !row[5]) continue;
-
     const applicant = normalizeName(row[5]);
     const otDate = parseExcelDate(row[7]);
     const hours = toNum(row[11]);
     const approved = String(row[15] || '').trim();
-
     if (!applicant || !otDate) continue;
-    if (approved && approved !== 'Approved') continue; // skip non-approved
-
+    if (approved && approved !== 'Approved') continue;
     records.push({ applicant, otDate, hours, dateKey: getMonthKey(otDate) });
   }
-
   return records;
+}
+
+function parseCombinedSheet(data) {
+  const leave = [];
+  const overtime = [];
+  for (let i = 1; i < data.length; i++) {
+    const row = data[i];
+    if (!row || !row[5]) continue;
+    
+    const applicant = normalizeName(row[5]);
+    const formType = String(row[6] || '').trim();
+    if (!applicant || !formType) continue;
+
+    // 加班申請
+    if (formType.startsWith('加班') || formType === '加班申請表') {
+      const otDate = parseExcelDate(row[14]); // O (index 14)
+      const hours = toNum(row[18]); // S (index 18)
+      if (otDate && hours > 0) {
+        overtime.push({ applicant, otDate, hours, dateKey: getMonthKey(otDate) });
+      }
+    }
+    // 請假申請 (包含長假與公假，排除事前申請)
+    else if ((formType.startsWith('請假') || formType.startsWith('長假') || formType.startsWith('公假')) && !formType.includes('(事前申請)')) {
+      let leaveType = '';
+      let startDate = null;
+      let endDate = null;
+      let days = 0;
+      let timeRange = '';
+
+      if (formType.startsWith('請假')) {
+        leaveType = normalizeLeaveType(row[7]); // H (index 7)
+        startDate = parseExcelDate(row[8]); // I (index 8)
+        endDate = parseExcelDate(row[9]); // J (index 9)
+        days = toNum(row[10]); // K (index 10)
+        timeRange = String(row[11] || ''); // L (index 11)
+      } else if (formType.startsWith('長假')) {
+        leaveType = normalizeLeaveType(row[28]); // AC (index 28)
+        startDate = parseExcelDate(row[25]); // Z (index 25)
+        endDate = parseExcelDate(row[26]); // AA (index 26)
+        days = toNum(row[27]); // AB (index 27)
+      } else if (formType.startsWith('公假')) {
+        leaveType = 'Official Leave公假';
+        startDate = parseExcelDate(row[29]); // AD (index 29)
+        endDate = startDate;
+        days = 1;
+      }
+
+      if (leaveType && startDate) {
+        const monthDate = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+        monthDate.__isNormalized = true;
+        leave.push({ applicant, leaveType, monthDate, startDate, endDate, days, timeRange, monthKey: getMonthKey(monthDate) });
+      }
+    }
+  }
+  return { leave, overtime };
+}
+
+function parseApplicationData(wb) {
+  const result = { leave: [], overtime: [] };
+  
+  // 1. 支援舊版請假原始檔
+  if (wb.Sheets['請假原始檔']) {
+    result.leave = parseLeaveSheet(wb.Sheets['請假原始檔']);
+  }
+  // 2. 支援舊版加班原始數據
+  if (wb.Sheets['加班原始數據']) {
+    result.overtime = parseOvertimeSheet(wb.Sheets['加班原始數據']);
+  }
+  
+  // 3. 支援新版合併表單 (Sheet1)
+  const combinedSheetName = wb.SheetNames.find(s => s === 'Sheet1' || (!['請假原始檔', '請假整理', '加班原始數據', '加班整理'].includes(s) && !/\d{6}/.test(s)));
+  if (combinedSheetName) {
+    const ws = wb.Sheets[combinedSheetName];
+    const data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+    if (data.length >= 2) {
+      const parsed = parseCombinedSheet(data);
+      if (parsed.leave.length > 0) result.leave = parsed.leave;
+      if (parsed.overtime.length > 0) result.overtime = parsed.overtime;
+    }
+  }
+  
+  return result;
 }
 
 // ==================== 解析排班表 ====================
@@ -1156,10 +1267,10 @@ async function handleFile(file, expectedType, card) {
     state.workbooks[finalType] = wb;
 
     // Parse immediately
-    if (finalType === 'leave') {
-      state.parsed.leave = parseLeaveData(wb);
-    } else if (finalType === 'overtime') {
-      state.parsed.overtime = parseOvertimeData(wb);
+    if (finalType === 'application') {
+      const parsedData = parseApplicationData(wb);
+      state.parsed.leave = parsedData.leave;
+      state.parsed.overtime = parsedData.overtime;
     } else if (finalType === 'schedule') {
       const schedData = parseScheduleData(wb);
       state.parsed.employees = schedData.employees;
@@ -1172,11 +1283,13 @@ async function handleFile(file, expectedType, card) {
 
     // Update UI
     const targetCard = document.querySelector(`.upload-card[data-type="${finalType}"]`);
-    targetCard.classList.add('loaded');
-    const status = targetCard.querySelector('.file-status');
-    status.classList.add('show');
-    status.innerHTML = `<span class="check">✓</span> ${file.name}`;
-    targetCard.querySelector('.drop-zone').style.display = 'none';
+    if (targetCard) {
+      targetCard.classList.add('loaded');
+      const status = targetCard.querySelector('.file-status');
+      status.classList.add('show');
+      status.innerHTML = `<span class="check">✓</span> ${file.name}`;
+      targetCard.querySelector('.drop-zone').style.display = 'none';
+    }
 
     // Show detected info
     if (state.parsed.scheduleMonth && state.parsed.scheduleYear) {
@@ -1195,7 +1308,7 @@ async function handleFile(file, expectedType, card) {
 }
 
 function checkReady() {
-  const allLoaded = state.workbooks.leave && state.workbooks.overtime && state.workbooks.schedule;
+  const allLoaded = state.workbooks.application && state.workbooks.schedule;
   document.getElementById('btn-analyze').disabled = !allLoaded;
 }
 
