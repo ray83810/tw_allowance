@@ -37,6 +37,16 @@ def get_canonical_name(name):
                 return cname
     return str(name).strip()
 
+def to_float(val):
+    if not val:
+        return 0.0
+    val_str = str(val).strip()
+    import re
+    m = re.match(r'^[-+]?[0-9]*\.?[0-9]+', val_str)
+    if m:
+        return float(m.group(0))
+    return 0.0
+
 def test_verification():
     # 1. Load data
     leave_wb = openpyxl.load_workbook(os.path.join(folder, '2026_請假申請表_Soluto_&_Care_May.xlsx'), data_only=True)
@@ -117,7 +127,7 @@ def test_verification():
                     m = int(pts[1])
                 
                 if y == 2026 and m == 5:
-                    ot_records.append({'name': name, 'date': dt_str, 'hours': float(hours or 0)})
+                    ot_records.append({'name': name, 'date': dt_str, 'hours': to_float(hours)})
                     
         # Leave
         elif (form_type.startswith('請假') or form_type.startswith('長假') or form_type.startswith('公假')) and '(事前申請)' not in form_type:
@@ -139,17 +149,24 @@ def test_verification():
                 days = 1
                 
             if ltype and start_date:
-                if isinstance(start_date, datetime):
-                    m = start_date.month
-                    y = start_date.year
-                else:
-                    dt_str = str(start_date).split()[0]
-                    pts = dt_str.split('-')
-                    y = int(pts[0])
-                    m = int(pts[1])
+                if not isinstance(start_date, datetime):
+                    try:
+                        start_date = datetime.strptime(str(start_date).split()[0], '%Y-%m-%d')
+                    except Exception:
+                        start_date = None
                 
-                if y == 2026 and m <= 5:
-                    leave_records.append({'name': name, 'type': ltype, 'month': m, 'days': float(days or 0)})
+                if start_date:
+                    from datetime import timedelta
+                    remaining_days = to_float(days)
+                    curr_date = start_date
+                    while remaining_days > 0:
+                        day_val = min(remaining_days, 1.0)
+                        y = curr_date.year
+                        m = curr_date.month
+                        if y == 2026 and m <= 5:
+                            leave_records.append({'name': name, 'type': ltype, 'month': m, 'days': day_val})
+                        remaining_days -= day_val
+                        curr_date += timedelta(days=1)
 
     # Calculate leave stats for May
     may_leave_stats = {}

@@ -246,13 +246,34 @@ function parseLeaveSheet(ws) {
     if (!row || !row[5]) continue;
     const applicant = normalizeName(row[5]);
     const leaveType = normalizeLeaveType(row[6]);
-    const monthDate = parseExcelDate(row[7]);
     const startDate = parseExcelDate(row[8]);
-    const endDate = parseExcelDate(row[9]);
     const days = toNum(row[10]);
     const timeRange = String(row[11] || '');
-    if (!applicant || !leaveType || !monthDate) continue;
-    records.push({ applicant, leaveType, monthDate, startDate, endDate, days, timeRange, monthKey: getMonthKey(monthDate) });
+    if (!applicant || !leaveType || !startDate) continue;
+
+    let remainingDays = days;
+    let currentDate = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+    currentDate.__isNormalized = true;
+
+    while (remainingDays > 0) {
+      const dayVal = Math.min(remainingDays, 1.0);
+      const mDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+      mDate.__isNormalized = true;
+
+      records.push({
+        applicant,
+        leaveType,
+        monthDate: mDate,
+        startDate: new Date(currentDate.getTime()),
+        endDate: new Date(currentDate.getTime()),
+        days: dayVal,
+        timeRange,
+        monthKey: getMonthKey(mDate)
+      });
+
+      remainingDays -= dayVal;
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
   }
   return records;
 }
@@ -321,9 +342,29 @@ function parseCombinedSheet(data) {
       }
 
       if (leaveType && startDate) {
-        const monthDate = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
-        monthDate.__isNormalized = true;
-        leave.push({ applicant, leaveType, monthDate, startDate, endDate, days, timeRange, monthKey: getMonthKey(monthDate) });
+        let remainingDays = days;
+        let currentDate = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+        currentDate.__isNormalized = true;
+
+        while (remainingDays > 0) {
+          const dayVal = Math.min(remainingDays, 1.0);
+          const monthDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+          monthDate.__isNormalized = true;
+
+          leave.push({
+            applicant,
+            leaveType,
+            monthDate,
+            startDate: new Date(currentDate.getTime()),
+            endDate: new Date(currentDate.getTime()),
+            days: dayVal,
+            timeRange,
+            monthKey: getMonthKey(monthDate)
+          });
+
+          remainingDays -= dayVal;
+          currentDate.setDate(currentDate.getDate() + 1);
+        }
       }
     }
   }
