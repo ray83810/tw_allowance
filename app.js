@@ -1947,7 +1947,7 @@ function exportPersonalCardImage(empName) {
 
   html2canvas(cardElement, {
     scale: 2,
-    backgroundColor: '#121222',
+    backgroundColor: '#ffffff',
     useCORS: true,
     logging: false
   }).then(canvas => {
@@ -2002,7 +2002,7 @@ async function exportAllCardsToZip() {
       // 2. Snapshot the card
       const canvas = await html2canvas(document.getElementById('personal-report-card'), {
         scale: 2,
-        backgroundColor: '#121222',
+        backgroundColor: '#ffffff',
         useCORS: true,
         logging: false
       });

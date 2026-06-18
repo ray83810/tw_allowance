@@ -969,13 +969,13 @@ button:focus-visible {
 .personal-report-card {
     width: 800px;
     min-height: 500px;
-    background: linear-gradient(135deg, #121222 0%, #0c0c16 100%);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
     border-radius: 20px;
     padding: 40px;
-    box-shadow: 0 30px 60px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.08);
     flex-shrink: 0;
-    color: #e8e8f0;
+    color: #0f172a;
 }
 
 /* 卡片頁眉 */
@@ -983,7 +983,7 @@ button:focus-visible {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    border-bottom: 1px solid #e2e8f0;
     padding-bottom: 20px;
     margin-bottom: 28px;
 }
@@ -998,7 +998,7 @@ button:focus-visible {
     font-size: 20px;
     font-weight: 800;
     letter-spacing: 0.5px;
-    color: #ffffff;
+    color: #0f172a;
     display: flex;
     align-items: center;
     gap: 6px;
@@ -1015,7 +1015,7 @@ button:focus-visible {
 .card-header-title {
     font-size: 14px;
     font-weight: 500;
-    color: var(--text-secondary);
+    color: #64748b;
     letter-spacing: 1.5px;
 }
 
@@ -1026,16 +1026,13 @@ button:focus-visible {
 .card-meta-name {
     font-size: 24px;
     font-weight: 700;
-    color: #ffffff;
+    color: #0f172a;
     letter-spacing: 0.5px;
-    background: linear-gradient(135deg, #ffffff 0%, rgba(255, 255, 255, 0.8) 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
 }
 
 .card-meta-month {
     font-size: 13px;
-    color: var(--text-secondary);
+    color: #475569;
     margin-top: 4px;
     font-weight: 500;
 }
@@ -1049,8 +1046,8 @@ button:focus-visible {
 }
 
 .summary-stat-card {
-    background: rgba(255, 255, 255, 0.02);
-    border: 1px solid rgba(255, 255, 255, 0.05);
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
     border-radius: 16px;
     padding: 20px;
     text-align: center;
@@ -1078,21 +1075,21 @@ button:focus-visible {
     line-height: 1;
 }
 
-.summary-stat-card.leave .stat-value { color: #f87171; }
-.summary-stat-card.overtime .stat-value { color: #2dd4bf; }
-.summary-stat-card.allowance .stat-value { color: #a5b4fc; }
+.summary-stat-card.leave .stat-value { color: #dc2626; }
+.summary-stat-card.overtime .stat-value { color: #0d9488; }
+.summary-stat-card.allowance .stat-value { color: #4f46e5; }
 
 .summary-stat-card .stat-value span {
     font-size: 14px;
     font-weight: 500;
-    color: var(--text-secondary);
+    color: #64748b;
     margin-left: 4px;
 }
 
 .summary-stat-card .stat-label {
     font-size: 13px;
     font-weight: 600;
-    color: var(--text-secondary);
+    color: #64748b;
     letter-spacing: 0.5px;
 }
 
@@ -1108,7 +1105,7 @@ button:focus-visible {
 .section-title {
     font-size: 15px;
     font-weight: 600;
-    color: #ffffff;
+    color: #0f172a;
     margin-bottom: 12px;
     display: flex;
     align-items: center;
@@ -1119,17 +1116,17 @@ button:focus-visible {
     content: '';
     flex: 1;
     height: 1px;
-    background: rgba(255, 255, 255, 0.06);
+    background: #e2e8f0;
     margin-left: 12px;
 }
 
 .empty-details {
     text-align: center;
     padding: 24px;
-    background: rgba(255, 255, 255, 0.01);
-    border: 1px dashed rgba(255, 255, 255, 0.06);
+    background: #f8fafc;
+    border: 1px dashed #cbd5e1;
     border-radius: 12px;
-    color: var(--text-secondary);
+    color: #64748b;
     font-size: 13px;
 }
 
@@ -1137,20 +1134,20 @@ button:focus-visible {
 .personal-report-card table {
     width: 100%;
     border-collapse: collapse;
-    background: rgba(255, 255, 255, 0.015);
-    border: 1px solid rgba(255, 255, 255, 0.06);
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
     border-radius: 10px;
     overflow: hidden;
 }
 
 .personal-report-card th {
-    background: rgba(255, 255, 255, 0.03);
+    background: #f1f5f9;
     padding: 10px 14px;
     text-align: left;
     font-weight: 600;
     font-size: 12px;
-    color: rgba(255, 255, 255, 0.6);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    color: #475569;
+    border-bottom: 1px solid #e2e8f0;
     text-transform: none;
     letter-spacing: 0.3px;
     white-space: nowrap;
@@ -1158,9 +1155,9 @@ button:focus-visible {
 
 .personal-report-card td {
     padding: 9px 14px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+    border-bottom: 1px solid #f1f5f9;
     font-size: 13px;
-    color: rgba(255, 255, 255, 0.85);
+    color: #334155;
     background: transparent !important; /* 取消 hover row */
 }
 
@@ -1169,7 +1166,7 @@ button:focus-visible {
 }
 
 .personal-report-card tr:nth-child(even) td {
-    background: rgba(255, 255, 255, 0.005) !important;
+    background: #f8fafc !important;
 }
 
 /* 空白佔位 */
