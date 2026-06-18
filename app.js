@@ -224,6 +224,19 @@ function normalizeLeaveType(type) {
   return type;
 }
 
+function isNightShiftVal(val) {
+  if (!val) return false;
+  const s = String(val).trim();
+  return /^(15|16|17|18|19)\b/.test(s);
+}
+
+function formatShiftDate(date) {
+  if (!date) return '';
+  const d = parseExcelDate(date);
+  if (!d) return '';
+  return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
+}
+
 // ==================== 檔案偵測 ====================
 function detectFileType(wb) {
   const sheets = wb.SheetNames;
@@ -648,12 +661,93 @@ function calculateAll() {
     };
   }
 
+  // ===== 7. 津貼統計 (小夜班) =====
+  const allowanceStats = {
+    summary: [], // { name, days }
+    details: [], // { name, startDate, endDate, total }
+  };
+
+  const nightShiftSummary = [];
+  const nightShiftDetails = [];
+
+  for (const emp of allEmployees) {
+    const employee = employees.find(e => e.name === emp);
+    if (!employee || !employee.schedule) continue;
+
+    const nightShiftDates = [];
+    for (const dateStr of Object.keys(employee.schedule)) {
+      if (isNightShiftVal(employee.schedule[dateStr])) {
+        const parts = dateStr.split('-');
+        const y = parseInt(parts[0], 10);
+        const m = parseInt(parts[1], 10) - 1;
+        const d = parseInt(parts[2], 10);
+        const dateObj = new Date(y, m, d);
+        dateObj.__isNormalized = true;
+        nightShiftDates.push(dateObj);
+      }
+    }
+
+    if (nightShiftDates.length === 0) continue;
+
+    // Sort chronologically
+    nightShiftDates.sort((a, b) => a.getTime() - b.getTime());
+
+    // Group consecutive dates
+    const groups = [];
+    let currentGroup = [nightShiftDates[0]];
+    for (let i = 1; i < nightShiftDates.length; i++) {
+      const prev = nightShiftDates[i - 1];
+      const curr = nightShiftDates[i];
+      const diffTime = curr.getTime() - prev.getTime();
+      const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+      if (diffDays === 1) {
+        currentGroup.push(curr);
+      } else {
+        groups.push(currentGroup);
+        currentGroup = [curr];
+      }
+    }
+    if (currentGroup.length > 0) {
+      groups.push(currentGroup);
+    }
+
+    // Add to summary
+    nightShiftSummary.push({
+      name: emp,
+      days: nightShiftDates.length
+    });
+
+    // Add to details
+    for (const g of groups) {
+      nightShiftDetails.push({
+        name: emp,
+        startDate: g[0],
+        endDate: g[g.length - 1],
+        total: g.length
+      });
+    }
+  }
+
+  // Sort summary alphabetically by name
+  nightShiftSummary.sort((a, b) => a.name.localeCompare(b.name));
+
+  // Sort details alphabetically by name, then by startDate
+  nightShiftDetails.sort((a, b) => {
+    const nameComp = a.name.localeCompare(b.name);
+    if (nameComp !== 0) return nameComp;
+    return a.startDate.getTime() - b.startDate.getTime();
+  });
+
+  allowanceStats.summary = nightShiftSummary;
+  allowanceStats.details = nightShiftDetails;
+
   return {
     monthlyLeave, monthlyLeaveTypes: [...monthlyLeaveTypes],
     yearlyLeave, yearlyLeaveTypes: [...yearlyLeaveTypes],
     otStats, otDates: [...otDates].sort(),
     totalStats, monthlyDetail,
     ptoSummary,
+    allowanceStats,
     allEmployees, targetMonthKey,
     scheduleMonth, scheduleYear,
   };
@@ -1007,12 +1101,51 @@ function generateUpdatedPtoSheet(results) {
   return ws;
 }
 
+function generateAllowanceSheet(results) {
+  const { allowanceStats } = results;
+  const { summary, details } = allowanceStats;
+
+  const rows = [];
+  // Row 1: Headers
+  rows.push(['津貼統計(以天數計)', '小夜天數', '', 'Name', 'Start Date', 'End Date', 'Total']);
+
+  const maxRows = Math.max(summary.length + 1, details.length); // excluding header
+
+  for (let i = 0; i < maxRows; i++) {
+    const row = ['', '', '', '', '', '', ''];
+
+    // Left table (Summary + Total)
+    if (i < summary.length) {
+      row[0] = summary[i].name;
+      row[1] = summary[i].days;
+    } else if (i === summary.length) {
+      row[0] = 'Total';
+      row[1] = { f: `SUM(B2:B${summary.length + 1})` };
+    }
+
+    // Right table (Details)
+    if (i < details.length) {
+      row[3] = details[i].name;
+      row[4] = formatShiftDate(details[i].startDate);
+      row[5] = formatShiftDate(details[i].endDate);
+      row[6] = details[i].total;
+    }
+
+    rows.push(row);
+  }
+
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols'] = [{ wch: 22 }, { wch: 12 }, { wch: 5 }, { wch: 16 }, { wch: 12 }, { wch: 12 }, { wch: 8 }];
+  return ws;
+}
+
 // ==================== 預覽渲染 ====================
 function renderPreview(results) {
   renderLeavePreview(results);
   renderOvertimePreview(results);
   renderTotalPreview(results);
   renderPTOPreview(results);
+  renderAllowancePreview(results);
 }
 
 function createTable(headers, rows, footerRow) {
@@ -1204,6 +1337,44 @@ function renderPTOPreview(results) {
   document.getElementById('tab-pto').innerHTML = html;
 }
 
+function renderAllowancePreview(results) {
+  const { allowanceStats } = results;
+  const { summary, details } = allowanceStats;
+
+  let html = '<div class="allowance-layout">';
+
+  // 1. Left Table: Summary
+  html += '<div class="allowance-col-summary">';
+  html += '<h3>🌙 津貼統計 (以天數計)</h3>';
+  
+  const summaryHeaders = ['客服人員', '小夜天數'];
+  const summaryRows = summary.map(item => [item.name, item.days]);
+  const totalDays = summary.reduce((sum, item) => sum + item.days, 0);
+  const summaryFooter = ['Total', totalDays];
+  
+  html += createTable(summaryHeaders, summaryRows, summaryFooter);
+  html += '</div>';
+
+  // 2. Right Table: Details
+  html += '<div class="allowance-col-details">';
+  html += '<h3>📋 小夜班明細</h3>';
+  
+  const detailHeaders = ['Name', 'Start Date', 'End Date', 'Total'];
+  const detailRows = details.map(item => [
+    item.name,
+    formatShiftDate(item.startDate),
+    formatShiftDate(item.endDate),
+    item.total
+  ]);
+  
+  html += createTable(detailHeaders, detailRows, null);
+  html += '</div>';
+
+  html += '</div>';
+
+  document.getElementById('tab-allowance').innerHTML = html;
+}
+
 // ==================== 檔案下載 ====================
 function downloadAll() {
   if (!state.results) return;
@@ -1236,6 +1407,10 @@ function downloadAll() {
   // 4. 特休日數 sheet (Updated with formulas)
   const ptoWs = generateUpdatedPtoSheet(state.results);
   XLSX.utils.book_append_sheet(mergedWb, ptoWs, '特休日數');
+
+  // 5. 津貼統計 sheet
+  const allowanceWs = generateAllowanceSheet(state.results);
+  XLSX.utils.book_append_sheet(mergedWb, allowanceWs, '津貼統計');
 
   // Set sheet visibility. Hide the monthly detailed sheets (Jan ~ Dec).
   // This keeps formulas working while displaying only the 4 main items.

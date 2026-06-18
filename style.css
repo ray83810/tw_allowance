@@ -814,3 +814,21 @@ button:focus-visible {
     outline: 2px solid var(--accent-primary);
     outline-offset: 2px;
 }
+
+/* --- Allowance Preview Layout --- */
+.allowance-layout {
+    display: flex;
+    gap: 32px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    margin-top: 16px;
+}
+
+.allowance-col-summary {
+    flex: 1 1 300px;
+    max-width: 450px;
+}
+
+.allowance-col-details {
+    flex: 2 2 500px;
+}
