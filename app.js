@@ -1337,6 +1337,7 @@ function renderPreview(results) {
   renderTotalPreview(results);
   renderPTOPreview(results);
   renderAllowancePreview(results);
+  renderPersonalSelect(results);
 }
 
 function createTable(headers, rows, footerRow) {
@@ -1704,6 +1705,339 @@ function initUI() {
       document.getElementById(`tab-${btn.dataset.tab}`).classList.add('active');
     });
   });
+
+  // Personal report controls
+  const agentSelect = document.getElementById('personal-agent-select');
+  if (agentSelect) {
+    agentSelect.addEventListener('change', (e) => {
+      renderPersonalCard(e.target.value);
+    });
+  }
+
+  const btnExportCard = document.getElementById('btn-export-card');
+  if (btnExportCard) {
+    btnExportCard.addEventListener('click', () => {
+      const empName = agentSelect.value;
+      if (!empName) {
+        showToast('請先選擇客服人員', 'warning');
+        return;
+      }
+      exportPersonalCardImage(empName);
+    });
+  }
+
+  const btnExportAllZip = document.getElementById('btn-export-all-zip');
+  if (btnExportAllZip) {
+    btnExportAllZip.addEventListener('click', () => {
+      exportAllCardsToZip();
+    });
+  }
+}
+
+// ==================== 個人統計與圖片匯出邏輯 ====================
+function renderPersonalSelect(results) {
+  const select = document.getElementById('personal-agent-select');
+  if (!select) return;
+
+  const activeEmployees = results.allEmployees;
+  select.innerHTML = '<option value="">-- 請選擇人員 --</option>';
+
+  // Sort alphabetically using Chinese collation
+  const sortedEmps = [...activeEmployees].sort((a, b) => a.localeCompare(b, 'zh-Hant'));
+
+  for (const emp of sortedEmps) {
+    const opt = document.createElement('option');
+    opt.value = emp;
+    opt.textContent = emp;
+    select.appendChild(opt);
+  }
+
+  // Clear card content to placeholder
+  document.getElementById('personal-report-card').innerHTML = `
+    <div class="empty-card-placeholder">
+        <div class="placeholder-icon">👤</div>
+        <p>請選擇客服人員以檢視個人出勤與津貼統計</p>
+    </div>
+  `;
+}
+
+function renderPersonalCard(empName) {
+  const card = document.getElementById('personal-report-card');
+  if (!card) return;
+
+  if (!empName) {
+    card.innerHTML = `
+      <div class="empty-card-placeholder">
+          <div class="placeholder-icon">👤</div>
+          <p>請選擇客服人員以檢視個人出勤與津貼統計</p>
+      </div>
+    `;
+    return;
+  }
+
+  const { scheduleYear, scheduleMonth, leaveDetails, otDetails, allowanceStats } = state.results;
+
+  // 1. Filter Leaves
+  const leaves = leaveDetails.filter(rec => rec.name === empName);
+  const totalLeaveDays = leaves.reduce((sum, rec) => sum + toNum(rec.total), 0);
+
+  // 2. Filter Overtimes
+  const ots = otDetails.filter(rec => rec.name === empName);
+  const totalOtHours = ots.reduce((sum, rec) => sum + toNum(rec.total), 0);
+
+  // 3. Night shifts
+  const nightShiftSummary = allowanceStats.summary.find(s => s.name === empName);
+  const totalNightDays = nightShiftSummary ? nightShiftSummary.days : 0;
+  const nightShiftRanges = allowanceStats.details.filter(rec => rec.name === empName);
+
+  // Build the Card HTML
+  let html = `
+    <!-- Card Header -->
+    <div class="card-header">
+        <div class="card-header-logo">
+            <div class="logo-brand">
+                <span class="brand-blue">ASU</span><span class="brand-orange">RION</span>
+            </div>
+            <div class="card-header-title">月度出勤與津貼明細</div>
+        </div>
+        <div class="card-header-meta">
+            <div class="card-meta-name">${empName}</div>
+            <div class="card-meta-month">${scheduleYear} 年 ${scheduleMonth} 月</div>
+        </div>
+    </div>
+
+    <!-- Summary Metrics -->
+    <div class="card-summary-grid">
+        <div class="summary-stat-card leave">
+            <div class="stat-value">${totalLeaveDays}<span>天</span></div>
+            <div class="stat-label">請假總計</div>
+        </div>
+        <div class="summary-stat-card overtime">
+            <div class="stat-value">${totalOtHours}<span>小時</span></div>
+            <div class="stat-label">加班總計</div>
+        </div>
+        <div class="summary-stat-card allowance">
+            <div class="stat-value">${totalNightDays}<span>天</span></div>
+            <div class="stat-label">小夜津貼天數</div>
+        </div>
+    </div>
+
+    <!-- Details 1: Please-leave -->
+    <div class="card-detail-section">
+        <div class="section-title">📋 請假明細</div>
+  `;
+
+  if (leaves.length === 0) {
+    html += `<div class="empty-details">無請假記錄</div>`;
+  } else {
+    html += `
+      <table>
+          <thead>
+              <tr>
+                  <th>假別</th>
+                  <th>開始時間</th>
+                  <th>結束時間</th>
+                  <th>總計(天)</th>
+                  <th>時間段</th>
+              </tr>
+          </thead>
+          <tbody>
+    `;
+    for (const rec of leaves) {
+      html += `
+              <tr>
+                  <td>${rec.leaveType}</td>
+                  <td>${formatShiftDate(rec.startDate)}</td>
+                  <td>${formatShiftDate(rec.endDate)}</td>
+                  <td>${rec.total}</td>
+                  <td>${rec.timeRange || ''}</td>
+              </tr>
+      `;
+    }
+    html += `
+          </tbody>
+      </table>
+    `;
+  }
+  html += `</div>`;
+
+  // Details 2: Overtime
+  html += `
+    <div class="card-detail-section">
+        <div class="section-title">⏰ 加班明細</div>
+  `;
+  if (ots.length === 0) {
+    html += `<div class="empty-details">無加班記錄</div>`;
+  } else {
+    html += `
+      <table>
+          <thead>
+              <tr>
+                  <th>開始日期</th>
+                  <th>開始時間</th>
+                  <th>結束日期</th>
+                  <th>結束時間</th>
+                  <th>時數</th>
+              </tr>
+          </thead>
+          <tbody>
+    `;
+    for (const rec of ots) {
+      html += `
+              <tr>
+                  <td>${formatShiftDate(rec.startDate)}</td>
+                  <td>${rec.startTime || ''}</td>
+                  <td>${formatShiftDate(rec.endDate)}</td>
+                  <td>${rec.endTime || ''}</td>
+                  <td>${rec.total}</td>
+              </tr>
+      `;
+    }
+    html += `
+          </tbody>
+      </table>
+    `;
+  }
+  html += `</div>`;
+
+  // Details 3: Night shift allowance
+  html += `
+    <div class="card-detail-section">
+        <div class="section-title">🌙 小夜班明細 (津貼)</div>
+  `;
+  if (nightShiftRanges.length === 0) {
+    html += `<div class="empty-details">無小夜班記錄</div>`;
+  } else {
+    html += `
+      <table>
+          <thead>
+              <tr>
+                  <th>開始日期</th>
+                  <th>結束日期</th>
+                  <th>天數</th>
+              </tr>
+          </thead>
+          <tbody>
+    `;
+    for (const rec of nightShiftRanges) {
+      html += `
+              <tr>
+                  <td>${formatShiftDate(rec.startDate)}</td>
+                  <td>${formatShiftDate(rec.endDate)}</td>
+                  <td>${rec.total}</td>
+              </tr>
+      `;
+    }
+    html += `
+          </tbody>
+      </table>
+    `;
+  }
+  html += `</div>`;
+
+  card.innerHTML = html;
+}
+
+function exportPersonalCardImage(empName) {
+  if (!state.results) return;
+  const cardElement = document.getElementById('personal-report-card');
+  const { scheduleYear, scheduleMonth } = state.results;
+
+  showToast('正在生成個人圖片，請稍候...', 'warning');
+
+  html2canvas(cardElement, {
+    scale: 2,
+    backgroundColor: '#121222',
+    useCORS: true,
+    logging: false
+  }).then(canvas => {
+    canvas.toBlob(blob => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${empName}_${scheduleYear}.${scheduleMonth}_出勤明細.png`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast('個人出勤圖片下載成功！', 'success');
+    }, 'image/png');
+  }).catch(err => {
+    console.error(err);
+    showToast(`生成圖片失敗: ${err.message}`, 'error');
+  });
+}
+
+async function exportAllCardsToZip() {
+  if (!state.results) return;
+
+  const select = document.getElementById('personal-agent-select');
+  if (!select) return;
+
+  const originalSelected = select.value;
+  const { scheduleYear, scheduleMonth, allEmployees } = state.results;
+
+  const overlay = document.getElementById('loading-overlay');
+  const loadingText = overlay.querySelector('.loading-text');
+  
+  const originalOverlayText = loadingText.textContent;
+  loadingText.textContent = '正在準備批次匯出...';
+  overlay.style.display = 'flex';
+
+  const sortedEmps = [...allEmployees].sort((a, b) => a.localeCompare(b, 'zh-Hant'));
+  const zip = new JSZip();
+
+  try {
+    for (let i = 0; i < sortedEmps.length; i++) {
+      const emp = sortedEmps[i];
+      loadingText.textContent = `正在生成圖片 (${i + 1}/${sortedEmps.length}): ${emp}`;
+
+      // 1. Render card in visible DOM
+      select.value = emp;
+      renderPersonalCard(emp);
+
+      // Wait 2 frames for rendering engine to paint the card layout
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
+      // 2. Snapshot the card
+      const canvas = await html2canvas(document.getElementById('personal-report-card'), {
+        scale: 2,
+        backgroundColor: '#121222',
+        useCORS: true,
+        logging: false
+      });
+
+      // 3. Convert to blob and add to ZIP file
+      const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+      zip.file(`${emp}_${scheduleYear}.${scheduleMonth}_出勤明細.png`, blob);
+    }
+
+    loadingText.textContent = '正在壓縮圖片並打包 ZIP...';
+    const content = await zip.generateAsync({ type: 'blob' });
+
+    // Download ZIP
+    const url = URL.createObjectURL(content);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${scheduleYear}.${scheduleMonth}人員出勤明細圖片.zip`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    showToast('所有人員圖片打包 ZIP 下載成功！', 'success');
+  } catch (err) {
+    console.error(err);
+    showToast(`打包批次圖片失敗: ${err.message}`, 'error');
+  } finally {
+    // Restore select value and card display
+    select.value = originalSelected;
+    renderPersonalCard(originalSelected);
+
+    // Hide overlay and reset text
+    overlay.style.display = 'none';
+    loadingText.textContent = originalOverlayText;
+  }
 }
 
 async function handleFile(file, expectedType, card) {

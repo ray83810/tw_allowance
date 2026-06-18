@@ -7,6 +7,8 @@
     <title>Asurion 排班分析工具</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -83,6 +85,7 @@
             <button class="tab-btn" data-tab="total">📊 總請假統計</button>
             <button class="tab-btn" data-tab="pto">🏖 特休日數</button>
             <button class="tab-btn" data-tab="allowance">🌙 津貼統計</button>
+            <button class="tab-btn" data-tab="personal">👤 個人統計</button>
         </div>
         <div class="tab-content-area">
             <div id="tab-leave" class="tab-content active"></div>
@@ -90,6 +93,28 @@
             <div id="tab-total" class="tab-content"></div>
             <div id="tab-pto" class="tab-content"></div>
             <div id="tab-allowance" class="tab-content"></div>
+            <div id="tab-personal" class="tab-content">
+                <div class="personal-controls">
+                    <div class="control-group">
+                        <label for="personal-agent-select" class="control-label">選擇客服人員：</label>
+                        <select id="personal-agent-select" class="theme-select">
+                            <option value="">-- 請選擇人員 --</option>
+                        </select>
+                    </div>
+                    <div class="personal-actions">
+                        <button id="btn-export-card" class="action-btn">📥 匯出個人圖片</button>
+                        <button id="btn-export-all-zip" class="action-btn-secondary">📦 下載所有人員圖片 (ZIP)</button>
+                    </div>
+                </div>
+                <div id="personal-card-container">
+                    <div id="personal-report-card" class="personal-report-card">
+                        <div class="empty-card-placeholder">
+                            <div class="placeholder-icon">👤</div>
+                            <p>請選擇客服人員以檢視個人出勤與津貼統計</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </section>
 

@@ -852,3 +852,353 @@ button:focus-visible {
     flex: 1.5 1.5 600px;
     min-width: 320px;
 }
+
+/* ============================================
+   👤 個人統計與圖片匯出樣式
+   ============================================ */
+
+.personal-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+    background: var(--bg-card);
+    border: 1px solid var(--border-card);
+    border-radius: var(--radius-md);
+    padding: 20px 24px;
+    margin-bottom: 28px;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+}
+
+.control-group {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.control-label {
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+.theme-select {
+    background-color: rgba(20, 20, 35, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    padding: 10px 16px;
+    font-size: 15px;
+    font-weight: 500;
+    outline: none;
+    cursor: pointer;
+    font-family: inherit;
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+    min-width: 180px;
+}
+
+.theme-select:focus {
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 10px rgba(124, 92, 255, 0.25);
+}
+
+.personal-actions {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.personal-actions button {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: 600;
+    border-radius: var(--radius-sm);
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+    transition: transform var(--transition-fast), box-shadow var(--transition-fast), opacity var(--transition-fast);
+}
+
+.action-btn {
+    background: linear-gradient(135deg, var(--accent-primary) 0%, #5a3fd4 100%);
+    color: #ffffff;
+}
+
+.action-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(124, 92, 255, 0.3);
+}
+
+.action-btn-secondary {
+    background: linear-gradient(135deg, var(--accent-secondary) 0%, #00a88a 100%);
+    color: #ffffff;
+}
+
+.action-btn-secondary:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(0, 212, 170, 0.3);
+}
+
+.personal-actions button:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+.personal-actions button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+/* 個人統計卡片容器 */
+#personal-card-container {
+    width: 100%;
+    overflow-x: auto;
+    padding: 10px 4px 30px;
+    display: flex;
+    justify-content: center;
+}
+
+/* 個人統計卡片主體 (snapshot 目標) */
+.personal-report-card {
+    width: 800px;
+    min-height: 500px;
+    background: linear-gradient(135deg, #121222 0%, #0c0c16 100%);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 20px;
+    padding: 40px;
+    box-shadow: 0 30px 60px rgba(0, 0, 0, 0.5);
+    flex-shrink: 0;
+    color: #e8e8f0;
+}
+
+/* 卡片頁眉 */
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    padding-bottom: 20px;
+    margin-bottom: 28px;
+}
+
+.card-header-logo {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.logo-brand {
+    font-size: 20px;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.logo-brand .brand-blue {
+    color: #7c5cff;
+}
+
+.logo-brand .brand-orange {
+    color: #00d4aa;
+}
+
+.card-header-title {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    letter-spacing: 1.5px;
+}
+
+.card-header-meta {
+    text-align: right;
+}
+
+.card-meta-name {
+    font-size: 24px;
+    font-weight: 700;
+    color: #ffffff;
+    letter-spacing: 0.5px;
+    background: linear-gradient(135deg, #ffffff 0%, rgba(255, 255, 255, 0.8) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.card-meta-month {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-top: 4px;
+    font-weight: 500;
+}
+
+/* 數據彙總格 */
+.card-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    margin-bottom: 36px;
+}
+
+.summary-stat-card {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 16px;
+    padding: 20px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.summary-stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+}
+
+.summary-stat-card.leave::before { background: #ef4444; }
+.summary-stat-card.overtime::before { background: var(--accent-secondary); }
+.summary-stat-card.allowance::before { background: var(--accent-primary); }
+
+.summary-stat-card .stat-value {
+    font-size: 38px;
+    font-weight: 700;
+    margin-bottom: 6px;
+    line-height: 1;
+}
+
+.summary-stat-card.leave .stat-value { color: #f87171; }
+.summary-stat-card.overtime .stat-value { color: #2dd4bf; }
+.summary-stat-card.allowance .stat-value { color: #a5b4fc; }
+
+.summary-stat-card .stat-value span {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    margin-left: 4px;
+}
+
+.summary-stat-card .stat-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    letter-spacing: 0.5px;
+}
+
+/* 細項區塊 */
+.card-detail-section {
+    margin-bottom: 32px;
+}
+
+.card-detail-section:last-child {
+    margin-bottom: 0;
+}
+
+.section-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: #ffffff;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.section-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: rgba(255, 255, 255, 0.06);
+    margin-left: 12px;
+}
+
+.empty-details {
+    text-align: center;
+    padding: 24px;
+    background: rgba(255, 255, 255, 0.01);
+    border: 1px dashed rgba(255, 255, 255, 0.06);
+    border-radius: 12px;
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+/* 確保卡片內部的表格完全展示 (不使用捲軸) */
+.personal-report-card table {
+    width: 100%;
+    border-collapse: collapse;
+    background: rgba(255, 255, 255, 0.015);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.personal-report-card th {
+    background: rgba(255, 255, 255, 0.03);
+    padding: 10px 14px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.6);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    text-transform: none;
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+}
+
+.personal-report-card td {
+    padding: 9px 14px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.85);
+    background: transparent !important; /* 取消 hover row */
+}
+
+.personal-report-card tr:last-child td {
+    border-bottom: none;
+}
+
+.personal-report-card tr:nth-child(even) td {
+    background: rgba(255, 255, 255, 0.005) !important;
+}
+
+/* 空白佔位 */
+.empty-card-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 80px 24px;
+    text-align: center;
+    color: var(--text-secondary);
+}
+
+.placeholder-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+    opacity: 0.3;
+}
+
+.empty-card-placeholder p {
+    font-size: 15px;
+    font-weight: 500;
+}
+
+/* 移動端調優 */
+@media (max-width: 850px) {
+    /* 在手機端，如果個人統計頁籤開啟，允許滾動卡片 */
+    #personal-card-container {
+        justify-content: flex-start;
+    }
+}
+
