@@ -1340,7 +1340,7 @@ function renderPreview(results) {
 }
 
 function createTable(headers, rows, footerRow) {
-  let html = '<table><thead><tr>';
+  let html = '<div class="table-wrapper"><table><thead><tr>';
   for (const h of headers) html += `<th>${h}</th>`;
   html += '</tr></thead><tbody>';
   for (const row of rows) {
@@ -1355,7 +1355,7 @@ function createTable(headers, rows, footerRow) {
   } else {
     html += '</tbody>';
   }
-  html += '</table>';
+  html += '</table></div>';
   return html;
 }
 
