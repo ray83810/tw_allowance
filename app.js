@@ -6,7 +6,7 @@
 const state = {
   files: { application: null, schedule: null },
   workbooks: { application: null, schedule: null },
-  parsed: { leave: [], overtime: [], employees: [], ptoData: [], holidays: [], scheduleMonth: null, scheduleYear: null, scheduleSheet: null },
+  parsed: { leave: [], overtime: [], origLeaves: [], origOvertimes: [], employees: [], ptoData: [], holidays: [], scheduleMonth: null, scheduleYear: null, scheduleSheet: null },
   results: null
 };
 
@@ -249,11 +249,11 @@ function detectFileType(wb) {
   return null;
 }
 
-// ==================== 解析申請表單數據 (包含請假與加班) ====================
 function parseLeaveSheet(ws) {
   const data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
-  if (data.length < 2) return [];
-  const records = [];
+  if (data.length < 2) return { daily: [], original: [] };
+  const daily = [];
+  const original = [];
   for (let i = 1; i < data.length; i++) {
     const row = data[i];
     if (!row || !row[5]) continue;
@@ -264,6 +264,9 @@ function parseLeaveSheet(ws) {
     const timeRange = String(row[11] || '');
     if (!applicant || !leaveType || !startDate) continue;
 
+    const endDate = parseExcelDate(row[9]) || startDate;
+    original.push({ applicant, leaveType, startDate, endDate, days, timeRange });
+
     let remainingDays = days;
     let currentDate = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
     currentDate.__isNormalized = true;
@@ -273,7 +276,7 @@ function parseLeaveSheet(ws) {
       const mDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
       mDate.__isNormalized = true;
 
-      records.push({
+      daily.push({
         applicant,
         leaveType,
         monthDate: mDate,
@@ -288,7 +291,7 @@ function parseLeaveSheet(ws) {
       currentDate.setDate(currentDate.getDate() + 1);
     }
   }
-  return records;
+  return { daily, original };
 }
 
 function parseOvertimeSheet(ws) {
@@ -304,13 +307,19 @@ function parseOvertimeSheet(ws) {
     const approved = String(row[15] || '').trim();
     if (!applicant || !otDate) continue;
     if (approved && approved !== 'Approved') continue;
-    records.push({ applicant, otDate, hours, dateKey: getMonthKey(otDate) });
+
+    const startTime = String(row[8] || '').trim();
+    const endDate = parseExcelDate(row[9]) || otDate;
+    const endTime = String(row[10] || '').trim();
+
+    records.push({ applicant, otDate, startTime, endDate, endTime, hours, dateKey: getMonthKey(otDate) });
   }
   return records;
 }
 
 function parseCombinedSheet(data) {
-  const leave = [];
+  const dailyLeaves = [];
+  const origLeaves = [];
   const overtime = [];
   for (let i = 1; i < data.length; i++) {
     const row = data[i];
@@ -325,7 +334,11 @@ function parseCombinedSheet(data) {
       const otDate = parseExcelDate(row[14]); // O (index 14)
       const hours = toNum(row[18]); // S (index 18)
       if (otDate && hours > 0) {
-        overtime.push({ applicant, otDate, hours, dateKey: getMonthKey(otDate) });
+        const startTime = String(row[15] || '').trim();
+        const endDate = parseExcelDate(row[16]) || otDate;
+        const endTime = String(row[17] || '').trim();
+
+        overtime.push({ applicant, otDate, startTime, endDate, endTime, hours, dateKey: getMonthKey(otDate) });
       }
     }
     // 請假申請 (包含長假與公假，排除事前申請)
@@ -355,6 +368,9 @@ function parseCombinedSheet(data) {
       }
 
       if (leaveType && startDate) {
+        endDate = endDate || startDate;
+        origLeaves.push({ applicant, leaveType, startDate, endDate, days, timeRange });
+
         let remainingDays = days;
         let currentDate = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
         currentDate.__isNormalized = true;
@@ -364,7 +380,7 @@ function parseCombinedSheet(data) {
           const monthDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
           monthDate.__isNormalized = true;
 
-          leave.push({
+          dailyLeaves.push({
             applicant,
             leaveType,
             monthDate,
@@ -381,19 +397,22 @@ function parseCombinedSheet(data) {
       }
     }
   }
-  return { leave, overtime };
+  return { dailyLeaves, origLeaves, overtime };
 }
 
 function parseApplicationData(wb) {
-  const result = { leave: [], overtime: [] };
+  const result = { leave: [], overtime: [], origLeaves: [], origOvertimes: [] };
   
   // 1. 支援舊版請假原始檔
   if (wb.Sheets['請假原始檔']) {
-    result.leave = parseLeaveSheet(wb.Sheets['請假原始檔']);
+    const parsed = parseLeaveSheet(wb.Sheets['請假原始檔']);
+    result.leave = parsed.daily;
+    result.origLeaves = parsed.original;
   }
   // 2. 支援舊版加班原始數據
   if (wb.Sheets['加班原始數據']) {
     result.overtime = parseOvertimeSheet(wb.Sheets['加班原始數據']);
+    result.origOvertimes = result.overtime;
   }
   
   // 3. 支援新版合併表單 (Sheet1)
@@ -403,8 +422,14 @@ function parseApplicationData(wb) {
     const data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
     if (data.length >= 2) {
       const parsed = parseCombinedSheet(data);
-      if (parsed.leave.length > 0) result.leave = parsed.leave;
-      if (parsed.overtime.length > 0) result.overtime = parsed.overtime;
+      if (parsed.dailyLeaves.length > 0) {
+        result.leave = parsed.dailyLeaves;
+        result.origLeaves = parsed.origLeaves;
+      }
+      if (parsed.overtime.length > 0) {
+        result.overtime = parsed.overtime;
+        result.origOvertimes = parsed.overtime;
+      }
     }
   }
   
@@ -741,6 +766,43 @@ function calculateAll() {
   allowanceStats.summary = nightShiftSummary;
   allowanceStats.details = nightShiftDetails;
 
+  // ===== 8. 請假/加班 明細統計 =====
+  const leaveDetails = [];
+  for (const rec of state.parsed.origLeaves) {
+    const empName = getCanonicalName(rec.applicant, allEmployees);
+    if (!allEmployees.includes(empName)) continue;
+    const y = rec.startDate.getFullYear();
+    const m = rec.startDate.getMonth() + 1;
+    if (y === scheduleYear && m === scheduleMonth) {
+      leaveDetails.push({
+        name: empName,
+        leaveType: rec.leaveType,
+        startDate: rec.startDate,
+        endDate: rec.endDate,
+        total: rec.days,
+        timeRange: rec.timeRange
+      });
+    }
+  }
+
+  const otDetails = [];
+  for (const rec of state.parsed.origOvertimes) {
+    const empName = getCanonicalName(rec.applicant, allEmployees);
+    if (!allEmployees.includes(empName)) continue;
+    const y = rec.otDate.getFullYear();
+    const m = rec.otDate.getMonth() + 1;
+    if (y === scheduleYear && m === scheduleMonth) {
+      otDetails.push({
+        name: empName,
+        startDate: rec.otDate,
+        startTime: rec.startTime,
+        endDate: rec.endDate,
+        endTime: rec.endTime,
+        total: rec.hours
+      });
+    }
+  }
+
   return {
     monthlyLeave, monthlyLeaveTypes: [...monthlyLeaveTypes],
     yearlyLeave, yearlyLeaveTypes: [...yearlyLeaveTypes],
@@ -748,6 +810,8 @@ function calculateAll() {
     totalStats, monthlyDetail,
     ptoSummary,
     allowanceStats,
+    leaveDetails,
+    otDetails,
     allEmployees, targetMonthKey,
     scheduleMonth, scheduleYear,
   };
@@ -758,7 +822,7 @@ function generateLeaveExcel(results) {
   const wb = XLSX.utils.book_new();
 
   // --- Sheet 1: 請假整理 ---
-  const { monthlyLeave, monthlyLeaveTypes, yearlyLeave, yearlyLeaveTypes, allEmployees, scheduleYear, scheduleMonth } = results;
+  const { monthlyLeave, monthlyLeaveTypes, yearlyLeave, yearlyLeaveTypes, allEmployees, scheduleYear, scheduleMonth, leaveDetails } = results;
 
   const sortedMonthlyTypes = monthlyLeaveTypes.sort((a, b) => {
     const ia = LEAVE_CODE_ORDER.indexOf(LEAVE_TYPE_MAP[a]?.code);
@@ -772,14 +836,14 @@ function generateLeaveExcel(results) {
     return ia - ib;
   });
 
-  const rows1 = [];
-  rows1.push([]);
-  rows1.push(['月份', `${scheduleYear}/${scheduleMonth}/1`]);
-  rows1.push([]);
-  rows1.push(['當月請假統計']);
+  // Build left-hand side rows
+  const leftRows = [];
+  leftRows.push(['月份', `${scheduleYear}/${scheduleMonth}/1`]);
+  leftRows.push([]);
+  leftRows.push(['當月請假統計']);
   
-  const hdr5 = ['', ...sortedMonthlyTypes.map(t => LEAVE_TYPE_MAP[t].label), '總計'];
-  rows1.push(hdr5);
+  const monthlyHdr = ['', ...sortedMonthlyTypes.map(t => LEAVE_TYPE_MAP[t].label), '總計'];
+  leftRows.push(monthlyHdr);
 
   const empWithLeave = allEmployees.filter(e => monthlyLeave[e]);
   for (let i = 0; i < empWithLeave.length; i++) {
@@ -789,13 +853,12 @@ function generateLeaveExcel(results) {
     for (const lt of sortedMonthlyTypes) {
       row.push(monthlyLeave[emp]?.[lt] || '');
     }
-    // Formula for row sum (e.g. SUM(B6:C6))
     const lastColLetter = getColLetter(sortedMonthlyTypes.length + 1);
     row.push({ f: `SUM(B${rowIdx}:${lastColLetter}${rowIdx})` });
-    rows1.push(row);
+    leftRows.push(row);
   }
 
-  // Totals row
+  // Totals row for monthly summary
   const totalRowIdx = empWithLeave.length + 6;
   const totalRow = ['總計'];
   for (let c = 2; c <= sortedMonthlyTypes.length + 1; c++) {
@@ -804,16 +867,16 @@ function generateLeaveExcel(results) {
   }
   const lastColLetter = getColLetter(sortedMonthlyTypes.length + 1);
   totalRow.push({ f: `SUM(${lastColLetter}6:${lastColLetter}${totalRowIdx - 1})` });
-  rows1.push(totalRow);
+  leftRows.push(totalRow);
 
-  rows1.push([]);
-  rows1.push(['申請人', '(全部)']);
-  rows1.push([]);
+  leftRows.push([]);
+  leftRows.push(['申請人', '(全部)']);
+  leftRows.push([]);
 
   // 年度請假統計
-  rows1.push([`${scheduleYear}年度請假統計`]);
+  leftRows.push([`${scheduleYear}年度請假統計`]);
   const yHdr = ['', ...sortedYearlyTypes.map(t => LEAVE_TYPE_MAP[t].label), '總計'];
-  rows1.push(yHdr);
+  leftRows.push(yHdr);
 
   const sortedMonths = Object.keys(yearlyLeave).sort();
   const yearlyStartRowIdx = totalRowIdx + 5; // e.g. 14 + 5 = 19
@@ -821,14 +884,14 @@ function generateLeaveExcel(results) {
     const mk = sortedMonths[i];
     const pts = mk.split('-');
     const dateStr = `${pts[0]}/${parseInt(pts[1])}/1`;
-    const rowIdx = yearlyStartRowIdx + i + 1; // 19 + i + 1 = 20...
+    const rowIdx = yearlyStartRowIdx + i + 1;
     const row = [dateStr];
     for (const lt of sortedYearlyTypes) {
       row.push(yearlyLeave[mk]?.[lt] || '');
     }
     const lastYColLetter = getColLetter(sortedYearlyTypes.length + 1);
     row.push({ f: `SUM(B${rowIdx}:${lastYColLetter}${rowIdx})` });
-    rows1.push(row);
+    leftRows.push(row);
   }
 
   // Year totals
@@ -840,9 +903,73 @@ function generateLeaveExcel(results) {
   }
   const lastYColLetter = getColLetter(sortedYearlyTypes.length + 1);
   yTotal.push({ f: `SUM(${lastYColLetter}${yearlyStartRowIdx + 1}:${lastYColLetter}${yTotalRowIdx - 1})` });
-  rows1.push(yTotal);
+  leftRows.push(yTotal);
+
+  // Combine Left and Right Tables
+  const rows1 = [];
+  rows1.push([]); // Row 1 is empty
+
+  const maxLen = Math.max(leftRows.length, leaveDetails.length + 4);
+  const rightStartColIdx = sortedMonthlyTypes.length + 3; // e.g. 2 types -> index 5 (Column F)
+
+  for (let i = 0; i < maxLen; i++) {
+    const row = [];
+
+    // Fill left table
+    if (i < leftRows.length) {
+      const leftRow = leftRows[i];
+      for (let c = 0; c < leftRow.length; c++) {
+        row[c] = leftRow[c];
+      }
+    }
+
+    // Fill right table (starts at Row 4 index 2 of leftRows)
+    if (i >= 2) {
+      const rightRowIdx = i - 2; // 0 for Row 4 (Excel Row 4)
+      if (rightRowIdx === 0) {
+        row[rightStartColIdx] = 'Name';
+        row[rightStartColIdx + 1] = 'Type of Leave';
+        row[rightStartColIdx + 2] = 'Start Date';
+        row[rightStartColIdx + 3] = 'End Date';
+        row[rightStartColIdx + 4] = 'Total';
+        row[rightStartColIdx + 5] = 'Time Period';
+      } else if (rightRowIdx - 1 < leaveDetails.length) {
+        const rec = leaveDetails[rightRowIdx - 1];
+        row[rightStartColIdx] = rec.name;
+        row[rightStartColIdx + 1] = rec.leaveType;
+        row[rightStartColIdx + 2] = formatShiftDate(rec.startDate);
+        row[rightStartColIdx + 3] = formatShiftDate(rec.endDate);
+        row[rightStartColIdx + 4] = rec.total;
+        row[rightStartColIdx + 5] = rec.timeRange;
+      }
+    }
+
+    // Clean undefined cells to empty strings
+    for (let c = 0; c < row.length; c++) {
+      if (row[c] === undefined) row[c] = '';
+    }
+
+    rows1.push(row);
+  }
 
   const ws1 = XLSX.utils.aoa_to_sheet(rows1);
+
+  // Column width config
+  const colsConfig = [];
+  colsConfig[0] = { wch: 16 };
+  for (let c = 1; c <= sortedMonthlyTypes.length; c++) {
+    colsConfig[c] = { wch: 12 };
+  }
+  colsConfig[sortedMonthlyTypes.length + 1] = { wch: 10 };
+  colsConfig[sortedMonthlyTypes.length + 2] = { wch: 5 }; // empty divider
+  colsConfig[rightStartColIdx] = { wch: 16 };
+  colsConfig[rightStartColIdx + 1] = { wch: 25 };
+  colsConfig[rightStartColIdx + 2] = { wch: 12 };
+  colsConfig[rightStartColIdx + 3] = { wch: 12 };
+  colsConfig[rightStartColIdx + 4] = { wch: 8 };
+  colsConfig[rightStartColIdx + 5] = { wch: 15 };
+  ws1['!cols'] = colsConfig;
+
   XLSX.utils.book_append_sheet(wb, ws1, '請假整理');
 
   return wb;
@@ -852,13 +979,15 @@ function generateOvertimeExcel(results) {
   const wb = XLSX.utils.book_new();
 
   // --- Sheet 1: 加班整理 ---
-  const { otStats, otDates, allEmployees } = results;
+  const { otStats, otDates, allEmployees, otDetails } = results;
   const empsWithOT = allEmployees.filter(e => otStats[e]);
   const sortedDates = otDates.sort();
 
-  const rows = [];
-  rows.push([]); rows.push([]);
-  rows.push(['加總 - 共加班幾個小時']);
+  // Build left-hand side rows
+  const leftRows = [];
+  leftRows.push([]);
+  leftRows.push([]);
+  leftRows.push(['加總 - 共加班幾個小時']);
 
   // Header row with dates
   const formattedDates = sortedDates.map(d => {
@@ -866,7 +995,7 @@ function generateOvertimeExcel(results) {
     return `${parseInt(pts[0])}/${parseInt(pts[1])}/${parseInt(pts[2])}`;
   });
   const hdr = ['', ...formattedDates, '總計'];
-  rows.push(hdr);
+  leftRows.push(hdr);
 
   // Employee rows (Formula-based row sums)
   const lastDateColLetter = getColLetter(sortedDates.length + 1);
@@ -878,7 +1007,7 @@ function generateOvertimeExcel(results) {
       row.push(otStats[emp]?.[d] || '');
     }
     row.push({ f: `SUM(B${rowIdx}:${lastDateColLetter}${rowIdx})` });
-    rows.push(row);
+    leftRows.push(row);
   }
 
   // Totals Row (Formula-based column sums)
@@ -889,9 +1018,71 @@ function generateOvertimeExcel(results) {
     totalRow.push({ f: `SUM(${colLetter}5:${colLetter}${totalRowIdx - 1})` });
   }
   totalRow.push({ f: `SUM(${lastDateColLetter}5:${lastDateColLetter}${totalRowIdx - 1})` });
-  rows.push(totalRow);
+  leftRows.push(totalRow);
+
+  // Combine Left and Right Tables
+  const rows = [];
+  const maxLen = Math.max(leftRows.length, otDetails.length + 4);
+  const rightStartColIdx = sortedDates.length + 3; // e.g. Col A to ... plus 1 empty divider
+
+  for (let i = 0; i < maxLen; i++) {
+    const row = [];
+
+    // Fill left table
+    if (i < leftRows.length) {
+      const leftRow = leftRows[i];
+      for (let c = 0; c < leftRow.length; c++) {
+        row[c] = leftRow[c];
+      }
+    }
+
+    // Fill right table (starts at Row 4 index 3 of leftRows)
+    if (i >= 3) {
+      const rightRowIdx = i - 3; // 0 for Row 4 (Excel Row 4)
+      if (rightRowIdx === 0) {
+        row[rightStartColIdx] = 'Name';
+        row[rightStartColIdx + 1] = 'Start Date';
+        row[rightStartColIdx + 2] = 'Start Time';
+        row[rightStartColIdx + 3] = 'End Date';
+        row[rightStartColIdx + 4] = 'End Time';
+        row[rightStartColIdx + 5] = 'Total';
+      } else if (rightRowIdx - 1 < otDetails.length) {
+        const rec = otDetails[rightRowIdx - 1];
+        row[rightStartColIdx] = rec.name;
+        row[rightStartColIdx + 1] = formatShiftDate(rec.startDate);
+        row[rightStartColIdx + 2] = rec.startTime;
+        row[rightStartColIdx + 3] = formatShiftDate(rec.endDate);
+        row[rightStartColIdx + 4] = rec.endTime;
+        row[rightStartColIdx + 5] = rec.total;
+      }
+    }
+
+    // Clean undefined cells to empty strings
+    for (let c = 0; c < row.length; c++) {
+      if (row[c] === undefined) row[c] = '';
+    }
+
+    rows.push(row);
+  }
 
   const ws1 = XLSX.utils.aoa_to_sheet(rows);
+
+  // Column width config
+  const colsConfig = [];
+  colsConfig[0] = { wch: 16 };
+  for (let c = 1; c <= sortedDates.length; c++) {
+    colsConfig[c] = { wch: 8 };
+  }
+  colsConfig[sortedDates.length + 1] = { wch: 10 };
+  colsConfig[sortedDates.length + 2] = { wch: 5 }; // empty divider
+  colsConfig[rightStartColIdx] = { wch: 16 };
+  colsConfig[rightStartColIdx + 1] = { wch: 12 };
+  colsConfig[rightStartColIdx + 2] = { wch: 10 };
+  colsConfig[rightStartColIdx + 3] = { wch: 12 };
+  colsConfig[rightStartColIdx + 4] = { wch: 10 };
+  colsConfig[rightStartColIdx + 5] = { wch: 8 };
+  ws1['!cols'] = colsConfig;
+
   XLSX.utils.book_append_sheet(wb, ws1, '加班整理');
 
   return wb;
@@ -1169,7 +1360,7 @@ function createTable(headers, rows, footerRow) {
 }
 
 function renderLeavePreview(results) {
-  const { monthlyLeave, monthlyLeaveTypes, yearlyLeave, yearlyLeaveTypes, allEmployees, scheduleMonth, scheduleYear } = results;
+  const { monthlyLeave, monthlyLeaveTypes, yearlyLeave, yearlyLeaveTypes, allEmployees, scheduleMonth, scheduleYear, leaveDetails } = results;
 
   const sortedTypes = monthlyLeaveTypes.sort((a, b) => {
     const ia = LEAVE_CODE_ORDER.indexOf(LEAVE_TYPE_MAP[a]?.code);
@@ -1178,8 +1369,11 @@ function renderLeavePreview(results) {
   });
 
   let html = `<h3>📋 ${scheduleYear} 年 ${scheduleMonth} 月 請假統計</h3>`;
+  html += '<div class="preview-layout">';
 
-  // Monthly table
+  // 1. Left Table: Monthly Summary
+  html += '<div class="preview-col-summary">';
+  html += '<h4>當月請假統計 (天數)</h4>';
   const headers = ['員工', ...sortedTypes.map(t => LEAVE_TYPE_MAP[t]?.shortLabel || t), '總計'];
   const rows = [];
   const emps = allEmployees.filter(e => monthlyLeave[e]);
@@ -1205,6 +1399,24 @@ function renderLeavePreview(results) {
   totals.push(rows.reduce((s, r) => s + r[r.length - 1], 0));
 
   html += createTable(headers, rows, totals);
+  html += '</div>';
+
+  // 2. Right Table: Details
+  html += '<div class="preview-col-details">';
+  html += '<h4>請假明細</h4>';
+  const detailHeaders = ['Name', 'Type of Leave', 'Start Date', 'End Date', 'Total', 'Time Period'];
+  const detailRows = leaveDetails.map(rec => [
+    rec.name,
+    rec.leaveType,
+    formatShiftDate(rec.startDate),
+    formatShiftDate(rec.endDate),
+    rec.total,
+    rec.timeRange
+  ]);
+  html += createTable(detailHeaders, detailRows, null);
+  html += '</div>';
+
+  html += '</div>'; // end preview-layout
 
   // Yearly table
   const sortedYearTypes = yearlyLeaveTypes.sort((a, b) => {
@@ -1245,12 +1457,16 @@ function renderLeavePreview(results) {
 }
 
 function renderOvertimePreview(results) {
-  const { otStats, otDates, allEmployees } = results;
+  const { otStats, otDates, allEmployees, otDetails } = results;
   const emps = allEmployees.filter(e => otStats[e]);
   const sorted = otDates.sort();
 
   let html = '<h3>⏰ 加班統計</h3>';
+  html += '<div class="preview-layout">';
 
+  // 1. Left Table: Monthly Summary
+  html += '<div class="preview-col-summary">';
+  html += '<h4>當月加班統計 (小時)</h4>';
   const headers = ['員工', ...sorted.map(d => d.slice(5)), '總計'];
   const rows = [];
   for (const emp of emps) {
@@ -1274,6 +1490,25 @@ function renderOvertimePreview(results) {
   totals.push(rows.reduce((s, r) => s + r[r.length - 1], 0));
 
   html += createTable(headers, rows, totals);
+  html += '</div>';
+
+  // 2. Right Table: Details
+  html += '<div class="preview-col-details">';
+  html += '<h4>加班明細</h4>';
+  const detailHeaders = ['Name', 'Start Date', 'Start Time', 'End Date', 'End Time', 'Total'];
+  const detailRows = otDetails.map(rec => [
+    rec.name,
+    formatShiftDate(rec.startDate),
+    rec.startTime,
+    formatShiftDate(rec.endDate),
+    rec.endTime,
+    rec.total
+  ]);
+  html += createTable(detailHeaders, detailRows, null);
+  html += '</div>';
+
+  html += '</div>'; // end preview-layout
+
   document.getElementById('tab-overtime').innerHTML = html;
 }
 
@@ -1498,6 +1733,8 @@ async function handleFile(file, expectedType, card) {
       const parsedData = parseApplicationData(wb);
       state.parsed.leave = parsedData.leave;
       state.parsed.overtime = parsedData.overtime;
+      state.parsed.origLeaves = parsedData.origLeaves;
+      state.parsed.origOvertimes = parsedData.origOvertimes;
     } else if (finalType === 'schedule') {
       const schedData = parseScheduleData(wb);
       state.parsed.employees = schedData.employees;

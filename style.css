@@ -832,3 +832,23 @@ button:focus-visible {
 .allowance-col-details {
     flex: 2 2 500px;
 }
+
+/* --- Generic Preview Layout --- */
+.preview-layout {
+    display: flex;
+    gap: 32px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    margin-top: 16px;
+    width: 100%;
+}
+
+.preview-col-summary {
+    flex: 1 1 500px;
+    min-width: 320px;
+}
+
+.preview-col-details {
+    flex: 1.5 1.5 600px;
+    min-width: 320px;
+}
