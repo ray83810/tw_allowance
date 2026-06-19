@@ -1032,7 +1032,7 @@ button:focus-visible {
 /* 數據彙總格 */
 .card-summary-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(4, 1fr);
     gap: 20px;
     margin-bottom: 36px;
 }
@@ -1057,6 +1057,7 @@ button:focus-visible {
 }
 
 .summary-stat-card.leave::before { background: #ef4444; }
+.summary-stat-card.pto::before { background: #f59e0b; }
 .summary-stat-card.overtime::before { background: var(--accent-secondary); }
 .summary-stat-card.allowance::before { background: var(--accent-primary); }
 
@@ -1068,6 +1069,7 @@ button:focus-visible {
 }
 
 .summary-stat-card.leave .stat-value { color: #dc2626; }
+.summary-stat-card.pto .stat-value { color: #d97706; }
 .summary-stat-card.overtime .stat-value { color: #0d9488; }
 .summary-stat-card.allowance .stat-value { color: #4f46e5; }
 
