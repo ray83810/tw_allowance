@@ -970,12 +970,12 @@ button:focus-visible {
     width: 800px;
     min-height: 500px;
     background: #ffffff;
-    border: 1px solid #e2e8f0;
+    border: 1px solid #cbd5e1;
     border-radius: 20px;
     padding: 40px;
     box-shadow: 0 15px 40px rgba(0, 0, 0, 0.08);
     flex-shrink: 0;
-    color: #0f172a;
+    color: #000000;
 }
 
 /* 卡片頁眉 */
@@ -983,7 +983,7 @@ button:focus-visible {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-bottom: 1px solid #e2e8f0;
+    border-bottom: 1px solid #cbd5e1;
     padding-bottom: 20px;
     margin-bottom: 28px;
 }
@@ -998,24 +998,16 @@ button:focus-visible {
     font-size: 20px;
     font-weight: 800;
     letter-spacing: 0.5px;
-    color: #0f172a;
+    color: #000000;
     display: flex;
     align-items: center;
     gap: 6px;
 }
 
-.logo-brand .brand-blue {
-    color: #7c5cff;
-}
-
-.logo-brand .brand-orange {
-    color: #00d4aa;
-}
-
 .card-header-title {
     font-size: 14px;
     font-weight: 500;
-    color: #64748b;
+    color: #000000;
     letter-spacing: 1.5px;
 }
 
@@ -1026,15 +1018,15 @@ button:focus-visible {
 .card-meta-name {
     font-size: 24px;
     font-weight: 700;
-    color: #0f172a;
+    color: #000000;
     letter-spacing: 0.5px;
 }
 
 .card-meta-month {
     font-size: 13px;
-    color: #475569;
+    color: #000000;
     margin-top: 4px;
-    font-weight: 500;
+    font-weight: 600;
 }
 
 /* 數據彙總格 */
@@ -1047,7 +1039,7 @@ button:focus-visible {
 
 .summary-stat-card {
     background: #f8fafc;
-    border: 1px solid #e2e8f0;
+    border: 1px solid #cbd5e1;
     border-radius: 16px;
     padding: 20px;
     text-align: center;
@@ -1082,14 +1074,14 @@ button:focus-visible {
 .summary-stat-card .stat-value span {
     font-size: 14px;
     font-weight: 500;
-    color: #64748b;
+    color: #000000;
     margin-left: 4px;
 }
 
 .summary-stat-card .stat-label {
     font-size: 13px;
     font-weight: 600;
-    color: #64748b;
+    color: #000000;
     letter-spacing: 0.5px;
 }
 
@@ -1105,7 +1097,7 @@ button:focus-visible {
 .section-title {
     font-size: 15px;
     font-weight: 600;
-    color: #0f172a;
+    color: #000000;
     margin-bottom: 12px;
     display: flex;
     align-items: center;
@@ -1116,7 +1108,7 @@ button:focus-visible {
     content: '';
     flex: 1;
     height: 1px;
-    background: #e2e8f0;
+    background: #cbd5e1;
     margin-left: 12px;
 }
 
@@ -1124,10 +1116,11 @@ button:focus-visible {
     text-align: center;
     padding: 24px;
     background: #f8fafc;
-    border: 1px dashed #cbd5e1;
+    border: 1px dashed #94a3b8;
     border-radius: 12px;
-    color: #64748b;
+    color: #000000;
     font-size: 13px;
+    font-weight: 500;
 }
 
 /* 確保卡片內部的表格完全展示 (不使用捲軸) */
@@ -1135,19 +1128,19 @@ button:focus-visible {
     width: 100%;
     border-collapse: collapse;
     background: #ffffff;
-    border: 1px solid #e2e8f0;
+    border: 1px solid #cbd5e1;
     border-radius: 10px;
     overflow: hidden;
 }
 
-.personal-report-card th {
-    background: #f1f5f9;
+.personal-report-card thead th {
+    background: #f1f5f9 !important;
     padding: 10px 14px;
     text-align: left;
-    font-weight: 600;
+    font-weight: 700 !important;
     font-size: 12px;
-    color: #475569;
-    border-bottom: 1px solid #e2e8f0;
+    color: #000000 !important;
+    border-bottom: 1px solid #cbd5e1 !important;
     text-transform: none;
     letter-spacing: 0.3px;
     white-space: nowrap;
@@ -1155,9 +1148,9 @@ button:focus-visible {
 
 .personal-report-card td {
     padding: 9px 14px;
-    border-bottom: 1px solid #f1f5f9;
+    border-bottom: 1px solid #e2e8f0;
     font-size: 13px;
-    color: #334155;
+    color: #000000 !important;
     background: transparent !important; /* 取消 hover row */
 }
 

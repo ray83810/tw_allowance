@@ -1795,9 +1795,7 @@ function renderPersonalCard(empName) {
     <!-- Card Header -->
     <div class="card-header">
         <div class="card-header-logo">
-            <div class="logo-brand">
-                <span class="brand-blue">ASU</span><span class="brand-orange">RION</span>
-            </div>
+            <div class="logo-brand">ASURION</div>
             <div class="card-header-title">月度出勤與津貼明細</div>
         </div>
         <div class="card-header-meta">
