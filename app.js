@@ -818,6 +818,27 @@ function calculateAll() {
 }
 
 // ==================== Excel 生成 ====================
+function applyTableBorders(ws, startCol, endCol, rowStart, rowEnd) {
+  if (!ws) return;
+  for (let r = rowStart; r <= rowEnd; r++) {
+    for (let c = startCol; c <= endCol; c++) {
+      const cellAddress = XLSX.utils.encode_cell({ r, c });
+      let cell = ws[cellAddress];
+      if (!cell) {
+        cell = { t: 's', v: '' };
+        ws[cellAddress] = cell;
+      }
+      if (!cell.s) cell.s = {};
+      cell.s.border = {
+        top: { style: 'thin', color: { rgb: 'cbd5e1' } },
+        bottom: { style: 'thin', color: { rgb: 'cbd5e1' } },
+        left: { style: 'thin', color: { rgb: 'cbd5e1' } },
+        right: { style: 'thin', color: { rgb: 'cbd5e1' } }
+      };
+    }
+  }
+}
+
 function generateLeaveExcel(results) {
   const wb = XLSX.utils.book_new();
 
@@ -910,7 +931,7 @@ function generateLeaveExcel(results) {
   rows1.push([]); // Row 1 is empty
 
   const maxLen = Math.max(leftRows.length, leaveDetails.length + 4);
-  const rightStartColIdx = sortedMonthlyTypes.length + 3; // e.g. 2 types -> index 5 (Column F)
+  const rightStartColIdx = sortedMonthlyTypes.length + 4; // e.g. 2 types -> index 6 (Column G)
 
   for (let i = 0; i < maxLen; i++) {
     const row = [];
@@ -961,7 +982,8 @@ function generateLeaveExcel(results) {
     colsConfig[c] = { wch: 12 };
   }
   colsConfig[sortedMonthlyTypes.length + 1] = { wch: 10 };
-  colsConfig[sortedMonthlyTypes.length + 2] = { wch: 5 }; // empty divider
+  colsConfig[sortedMonthlyTypes.length + 2] = { wch: 5 }; // empty divider 1
+  colsConfig[sortedMonthlyTypes.length + 3] = { wch: 5 }; // empty divider 2
   colsConfig[rightStartColIdx] = { wch: 16 };
   colsConfig[rightStartColIdx + 1] = { wch: 25 };
   colsConfig[rightStartColIdx + 2] = { wch: 12 };
@@ -969,6 +991,11 @@ function generateLeaveExcel(results) {
   colsConfig[rightStartColIdx + 4] = { wch: 8 };
   colsConfig[rightStartColIdx + 5] = { wch: 15 };
   ws1['!cols'] = colsConfig;
+
+  // Apply borders
+  applyTableBorders(ws1, 0, sortedMonthlyTypes.length + 1, 3, totalRowIdx - 1);
+  applyTableBorders(ws1, 0, sortedYearlyTypes.length + 1, yearlyStartRowIdx - 1, yTotalRowIdx - 1);
+  applyTableBorders(ws1, rightStartColIdx, rightStartColIdx + 5, 2, leaveDetails.length + 2);
 
   XLSX.utils.book_append_sheet(wb, ws1, '請假整理');
 
@@ -1023,7 +1050,7 @@ function generateOvertimeExcel(results) {
   // Combine Left and Right Tables
   const rows = [];
   const maxLen = Math.max(leftRows.length, otDetails.length + 4);
-  const rightStartColIdx = sortedDates.length + 3; // e.g. Col A to ... plus 1 empty divider
+  const rightStartColIdx = sortedDates.length + 4; // e.g. Col A to ... plus 2 empty dividers
 
   for (let i = 0; i < maxLen; i++) {
     const row = [];
@@ -1074,7 +1101,8 @@ function generateOvertimeExcel(results) {
     colsConfig[c] = { wch: 8 };
   }
   colsConfig[sortedDates.length + 1] = { wch: 10 };
-  colsConfig[sortedDates.length + 2] = { wch: 5 }; // empty divider
+  colsConfig[sortedDates.length + 2] = { wch: 5 }; // empty divider 1
+  colsConfig[sortedDates.length + 3] = { wch: 5 }; // empty divider 2
   colsConfig[rightStartColIdx] = { wch: 16 };
   colsConfig[rightStartColIdx + 1] = { wch: 12 };
   colsConfig[rightStartColIdx + 2] = { wch: 10 };
@@ -1082,6 +1110,10 @@ function generateOvertimeExcel(results) {
   colsConfig[rightStartColIdx + 4] = { wch: 10 };
   colsConfig[rightStartColIdx + 5] = { wch: 8 };
   ws1['!cols'] = colsConfig;
+
+  // Apply borders
+  applyTableBorders(ws1, 0, sortedDates.length + 1, 3, totalRowIdx - 1);
+  applyTableBorders(ws1, rightStartColIdx, rightStartColIdx + 5, 3, 3 + otDetails.length);
 
   XLSX.utils.book_append_sheet(wb, ws1, '加班整理');
 
@@ -1153,6 +1185,7 @@ function generateTotalLeaveExcel(results) {
 
   const ws1 = XLSX.utils.aoa_to_sheet(rows);
   ws1['!cols'] = [{ wch: 16 }, { wch: 8 }, { wch: 8 }, ...Array(12).fill({ wch: 10 }), { wch: 10 }, { wch: 8 }, { wch: 6 }, { wch: 6 }, ...Array(9).fill({ wch: 6 })];
+  applyTableBorders(ws1, 0, 27, 0, allEmployees.length + 2);
   
   const lastDay = new Date(scheduleYear, scheduleMonth, 0).getDate();
   const summarySheetName = `統計表(統計至${scheduleMonth}.${lastDay}`;
@@ -1243,6 +1276,7 @@ function generateTotalLeaveExcel(results) {
 
     const ws = XLSX.utils.aoa_to_sheet(mRows);
     ws['!cols'] = [{ wch: 20 }, { wch: 52 }, { wch: 16 }, ...Array(11).fill({ wch: 8 })];
+    applyTableBorders(ws, 0, 13, 1, 20);
     XLSX.utils.book_append_sheet(wb, ws, sheetName);
   }
 
@@ -1289,6 +1323,7 @@ function generateUpdatedPtoSheet(results) {
   
   const ws = XLSX.utils.aoa_to_sheet(rows);
   ws['!cols'] = [{ wch: 16 }, { wch: 8 }, { wch: 8 }, { wch: 8 }, ...Array(12).fill({ wch: 8 }), { wch: 8 }, { wch: 8 }, { wch: 8 }, { wch: 8 }];
+  applyTableBorders(ws, 0, 19, 0, allEmployees.length);
   return ws;
 }
 
@@ -1298,12 +1333,12 @@ function generateAllowanceSheet(results) {
 
   const rows = [];
   // Row 1: Headers
-  rows.push(['津貼統計(以天數計)', '小夜天數', '', 'Name', 'Start Date', 'End Date', 'Total']);
+  rows.push(['津貼統計(以天數計)', '小夜天數', '', '', 'Name', 'Start Date', 'End Date', 'Total']);
 
   const maxRows = Math.max(summary.length + 1, details.length); // excluding header
 
   for (let i = 0; i < maxRows; i++) {
-    const row = ['', '', '', '', '', '', ''];
+    const row = ['', '', '', '', '', '', '', ''];
 
     // Left table (Summary + Total)
     if (i < summary.length) {
@@ -1316,17 +1351,22 @@ function generateAllowanceSheet(results) {
 
     // Right table (Details)
     if (i < details.length) {
-      row[3] = details[i].name;
-      row[4] = formatShiftDate(details[i].startDate);
-      row[5] = formatShiftDate(details[i].endDate);
-      row[6] = details[i].total;
+      row[4] = details[i].name;
+      row[5] = formatShiftDate(details[i].startDate);
+      row[6] = formatShiftDate(details[i].endDate);
+      row[7] = details[i].total;
     }
 
     rows.push(row);
   }
 
   const ws = XLSX.utils.aoa_to_sheet(rows);
-  ws['!cols'] = [{ wch: 22 }, { wch: 12 }, { wch: 5 }, { wch: 16 }, { wch: 12 }, { wch: 12 }, { wch: 8 }];
+  ws['!cols'] = [{ wch: 22 }, { wch: 12 }, { wch: 5 }, { wch: 5 }, { wch: 16 }, { wch: 12 }, { wch: 12 }, { wch: 8 }];
+  
+  // Apply borders
+  applyTableBorders(ws, 0, 1, 0, summary.length + 1);
+  applyTableBorders(ws, 4, 7, 0, details.length);
+  
   return ws;
 }
 
@@ -1627,29 +1667,30 @@ function downloadAll() {
   const otWb = generateOvertimeExcel(state.results);
   XLSX.utils.book_append_sheet(mergedWb, otWb.Sheets['加班整理'], '加班統計');
 
-  // 3. 總請假統計 - 統計表 renamed to 總請假統計 & Jan-Dec monthly sheets (will be hidden)
+  // 3. 津貼統計 sheet
+  const allowanceWs = generateAllowanceSheet(state.results);
+  XLSX.utils.book_append_sheet(mergedWb, allowanceWs, '津貼統計');
+
+  // 4. 總請假統計 - 統計表 renamed to 總請假統計 & Jan-Dec monthly sheets (will be hidden)
   const totalWb = generateTotalLeaveExcel(state.results);
   const totalSheetNames = totalWb.SheetNames;
   const summarySheetName = totalSheetNames.find(name => name.includes('統計表'));
   if (summarySheetName) {
     XLSX.utils.book_append_sheet(mergedWb, totalWb.Sheets[summarySheetName], '總請假統計');
   }
+
+  // 5. 特休日數 sheet (Updated with formulas)
+  const ptoWs = generateUpdatedPtoSheet(state.results);
+  XLSX.utils.book_append_sheet(mergedWb, ptoWs, '特休日數');
+
+  // Append hidden monthly sheets at the end
   for (const sheetName of totalSheetNames) {
     if (sheetName !== summarySheetName) {
       XLSX.utils.book_append_sheet(mergedWb, totalWb.Sheets[sheetName], sheetName);
     }
   }
 
-  // 4. 特休日數 sheet (Updated with formulas)
-  const ptoWs = generateUpdatedPtoSheet(state.results);
-  XLSX.utils.book_append_sheet(mergedWb, ptoWs, '特休日數');
-
-  // 5. 津貼統計 sheet
-  const allowanceWs = generateAllowanceSheet(state.results);
-  XLSX.utils.book_append_sheet(mergedWb, allowanceWs, '津貼統計');
-
   // Set sheet visibility. Hide the monthly detailed sheets (Jan ~ Dec).
-  // This keeps formulas working while displaying only the 4 main items.
   mergedWb.Workbook = {
     Sheets: mergedWb.SheetNames.map(name => {
       const isMonthly = MONTH_NAMES_EN.some(m => name.trim() === m);
