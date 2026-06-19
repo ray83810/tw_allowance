@@ -237,6 +237,12 @@ function formatShiftDate(date) {
   return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
 }
 
+function isExcludedFromLeaveStats(leaveType) {
+  const typeInfo = LEAVE_TYPE_MAP[leaveType];
+  if (!typeInfo) return false;
+  return typeInfo.code === 'PTO' || typeInfo.code === 'PTO-AL' || typeInfo.code === 'LOA';
+}
+
 // ==================== 檔案偵測 ====================
 function detectFileType(wb) {
   const sheets = wb.SheetNames;
@@ -845,13 +851,17 @@ function generateLeaveExcel(results) {
   // --- Sheet 1: 請假整理 ---
   const { monthlyLeave, monthlyLeaveTypes, yearlyLeave, yearlyLeaveTypes, allEmployees, scheduleYear, scheduleMonth, leaveDetails } = results;
 
-  const sortedMonthlyTypes = monthlyLeaveTypes.sort((a, b) => {
+  const filteredMonthlyTypes = monthlyLeaveTypes.filter(t => !isExcludedFromLeaveStats(t));
+  const filteredYearlyTypes = yearlyLeaveTypes.filter(t => !isExcludedFromLeaveStats(t));
+  const filteredLeaveDetails = leaveDetails.filter(rec => !isExcludedFromLeaveStats(rec.leaveType));
+
+  const sortedMonthlyTypes = filteredMonthlyTypes.sort((a, b) => {
     const ia = LEAVE_CODE_ORDER.indexOf(LEAVE_TYPE_MAP[a]?.code);
     const ib = LEAVE_CODE_ORDER.indexOf(LEAVE_TYPE_MAP[b]?.code);
     return ia - ib;
   });
 
-  const sortedYearlyTypes = yearlyLeaveTypes.sort((a, b) => {
+  const sortedYearlyTypes = filteredYearlyTypes.sort((a, b) => {
     const ia = LEAVE_CODE_ORDER.indexOf(LEAVE_TYPE_MAP[a]?.code);
     const ib = LEAVE_CODE_ORDER.indexOf(LEAVE_TYPE_MAP[b]?.code);
     return ia - ib;
@@ -866,7 +876,7 @@ function generateLeaveExcel(results) {
   const monthlyHdr = ['', ...sortedMonthlyTypes.map(t => LEAVE_TYPE_MAP[t].label), '總計'];
   leftRows.push(monthlyHdr);
 
-  const empWithLeave = allEmployees.filter(e => monthlyLeave[e]);
+  const empWithLeave = allEmployees.filter(e => sortedMonthlyTypes.some(lt => (monthlyLeave[e]?.[lt] || 0) > 0));
   for (let i = 0; i < empWithLeave.length; i++) {
     const emp = empWithLeave[i];
     const rowIdx = i + 6; // excel row index (1-based, starts at row 6)
@@ -930,7 +940,7 @@ function generateLeaveExcel(results) {
   const rows1 = [];
   rows1.push([]); // Row 1 is empty
 
-  const maxLen = Math.max(leftRows.length, leaveDetails.length + 4);
+  const maxLen = Math.max(leftRows.length, filteredLeaveDetails.length + 4);
   const rightStartColIdx = sortedMonthlyTypes.length + 4; // e.g. 2 types -> index 6 (Column G)
 
   for (let i = 0; i < maxLen; i++) {
@@ -954,8 +964,8 @@ function generateLeaveExcel(results) {
         row[rightStartColIdx + 3] = 'End Date';
         row[rightStartColIdx + 4] = 'Total';
         row[rightStartColIdx + 5] = 'Time Period';
-      } else if (rightRowIdx - 1 < leaveDetails.length) {
-        const rec = leaveDetails[rightRowIdx - 1];
+      } else if (rightRowIdx - 1 < filteredLeaveDetails.length) {
+        const rec = filteredLeaveDetails[rightRowIdx - 1];
         row[rightStartColIdx] = rec.name;
         row[rightStartColIdx + 1] = rec.leaveType;
         row[rightStartColIdx + 2] = formatShiftDate(rec.startDate);
@@ -995,7 +1005,7 @@ function generateLeaveExcel(results) {
   // Apply borders
   applyTableBorders(ws1, 0, sortedMonthlyTypes.length + 1, 3, totalRowIdx - 1);
   applyTableBorders(ws1, 0, sortedYearlyTypes.length + 1, yearlyStartRowIdx - 1, yTotalRowIdx - 1);
-  applyTableBorders(ws1, rightStartColIdx, rightStartColIdx + 5, 2, leaveDetails.length + 2);
+  applyTableBorders(ws1, rightStartColIdx, rightStartColIdx + 5, 2, filteredLeaveDetails.length + 2);
 
   XLSX.utils.book_append_sheet(wb, ws1, '請假整理');
 
@@ -1403,7 +1413,11 @@ function createTable(headers, rows, footerRow) {
 function renderLeavePreview(results) {
   const { monthlyLeave, monthlyLeaveTypes, yearlyLeave, yearlyLeaveTypes, allEmployees, scheduleMonth, scheduleYear, leaveDetails } = results;
 
-  const sortedTypes = monthlyLeaveTypes.sort((a, b) => {
+  const filteredMonthlyTypes = monthlyLeaveTypes.filter(t => !isExcludedFromLeaveStats(t));
+  const filteredYearlyTypes = yearlyLeaveTypes.filter(t => !isExcludedFromLeaveStats(t));
+  const filteredLeaveDetails = leaveDetails.filter(rec => !isExcludedFromLeaveStats(rec.leaveType));
+
+  const sortedTypes = filteredMonthlyTypes.sort((a, b) => {
     const ia = LEAVE_CODE_ORDER.indexOf(LEAVE_TYPE_MAP[a]?.code);
     const ib = LEAVE_CODE_ORDER.indexOf(LEAVE_TYPE_MAP[b]?.code);
     return ia - ib;
@@ -1417,7 +1431,7 @@ function renderLeavePreview(results) {
   html += '<h4>當月請假統計 (天數)</h4>';
   const headers = ['員工', ...sortedTypes.map(t => LEAVE_TYPE_MAP[t]?.shortLabel || t), '總計'];
   const rows = [];
-  const emps = allEmployees.filter(e => monthlyLeave[e]);
+  const emps = allEmployees.filter(e => sortedTypes.some(lt => (monthlyLeave[e]?.[lt] || 0) > 0));
   const totals = ['總計'];
 
   for (const emp of emps) {
@@ -1446,7 +1460,7 @@ function renderLeavePreview(results) {
   html += '<div class="preview-col-details">';
   html += '<h4>請假明細</h4>';
   const detailHeaders = ['Name', 'Type of Leave', 'Start Date', 'End Date', 'Total', 'Time Period'];
-  const detailRows = leaveDetails.map(rec => [
+  const detailRows = filteredLeaveDetails.map(rec => [
     rec.name,
     rec.leaveType,
     formatShiftDate(rec.startDate),
@@ -1460,7 +1474,7 @@ function renderLeavePreview(results) {
   html += '</div>'; // end preview-layout
 
   // Yearly table
-  const sortedYearTypes = yearlyLeaveTypes.sort((a, b) => {
+  const sortedYearTypes = filteredYearlyTypes.sort((a, b) => {
     const ia = LEAVE_CODE_ORDER.indexOf(LEAVE_TYPE_MAP[a]?.code);
     const ib = LEAVE_CODE_ORDER.indexOf(LEAVE_TYPE_MAP[b]?.code);
     return ia - ib;
@@ -1818,8 +1832,8 @@ function renderPersonalCard(empName) {
 
   const { scheduleYear, scheduleMonth, leaveDetails, otDetails, allowanceStats } = state.results;
 
-  // 1. Filter Leaves
-  const leaves = leaveDetails.filter(rec => rec.name === empName);
+  // 1. Filter Leaves (excluding PTO, PTO-AL, and LOA)
+  const leaves = leaveDetails.filter(rec => rec.name === empName && !isExcludedFromLeaveStats(rec.leaveType));
   const totalLeaveDays = leaves.reduce((sum, rec) => sum + toNum(rec.total), 0);
 
   // 2. Filter Overtimes
