@@ -936,8 +936,9 @@ function generateLeaveExcel(results) {
   const rows1 = [];
   rows1.push([]); // Row 1 is empty
 
+  const maxLeftCols = Math.max(sortedMonthlyTypes.length, sortedYearlyTypes.length);
   const maxLen = Math.max(leftRows.length, leaveDetails.length + 4);
-  const rightStartColIdx = sortedMonthlyTypes.length + 4; // e.g. 2 types -> index 6 (Column G)
+  const rightStartColIdx = maxLeftCols + 4; // e.g. max 5 types -> index 9 (Column J)
 
   for (let i = 0; i < maxLen; i++) {
     const row = [];
@@ -984,12 +985,12 @@ function generateLeaveExcel(results) {
   // Column width config
   const colsConfig = [];
   colsConfig[0] = { wch: 16 };
-  for (let c = 1; c <= sortedMonthlyTypes.length; c++) {
+  for (let c = 1; c <= maxLeftCols; c++) {
     colsConfig[c] = { wch: 12 };
   }
-  colsConfig[sortedMonthlyTypes.length + 1] = { wch: 10 };
-  colsConfig[sortedMonthlyTypes.length + 2] = { wch: 5 }; // empty divider 1
-  colsConfig[sortedMonthlyTypes.length + 3] = { wch: 5 }; // empty divider 2
+  colsConfig[maxLeftCols + 1] = { wch: 10 };
+  colsConfig[maxLeftCols + 2] = { wch: 5 }; // empty divider 1
+  colsConfig[maxLeftCols + 3] = { wch: 5 }; // empty divider 2
   colsConfig[rightStartColIdx] = { wch: 16 };
   colsConfig[rightStartColIdx + 1] = { wch: 25 };
   colsConfig[rightStartColIdx + 2] = { wch: 12 };
