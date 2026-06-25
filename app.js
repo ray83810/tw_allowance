@@ -7,7 +7,8 @@ const state = {
   files: { application: null, schedule: null },
   workbooks: { application: null, schedule: null },
   parsed: { leave: [], overtime: [], origLeaves: [], origOvertimes: [], employees: [], ptoData: [], holidays: [], scheduleMonth: null, scheduleYear: null, scheduleSheet: null },
-  results: null
+  results: null,
+  remarks: {} // Store manual remarks by employee name
 };
 
 // ==================== 假別對照表 ====================
@@ -1809,7 +1810,7 @@ function renderPersonalSelect(results) {
   `;
 }
 
-function renderPersonalCard(empName) {
+function renderPersonalCard(empName, isExport = false) {
   const card = document.getElementById('personal-report-card');
   if (!card) return;
 
@@ -1881,121 +1882,142 @@ function renderPersonalCard(empName) {
             <div class="stat-label">小夜津貼天數</div>
         </div>
     </div>
-
-    <!-- Details 1: Please-leave -->
-    <div class="card-detail-section">
-        <div class="section-title">📋 請假明細</div>
   `;
 
-  if (allEmployeeLeaves.length === 0) {
-    html += `<div class="empty-details">無請假記錄</div>`;
-  } else {
+  // Details 1: Please-leave (Only display if there are records)
+  if (allEmployeeLeaves.length > 0) {
     html += `
-      <table>
-          <thead>
-              <tr>
-                  <th>假別</th>
-                  <th>開始時間</th>
-                  <th>結束時間</th>
-                  <th>總計(天)</th>
-                  <th>時間段</th>
-              </tr>
-          </thead>
-          <tbody>
+      <div class="card-detail-section">
+          <div class="section-title">📋 請假明細</div>
+          <table>
+              <thead>
+                  <tr>
+                      <th>假別</th>
+                      <th>開始時間</th>
+                      <th>結束時間</th>
+                      <th>總計(天)</th>
+                      <th>時間段</th>
+                  </tr>
+              </thead>
+              <tbody>
     `;
     for (const rec of allEmployeeLeaves) {
       html += `
-              <tr>
-                  <td>${rec.leaveType}</td>
-                  <td>${formatShiftDate(rec.startDate)}</td>
-                  <td>${formatShiftDate(rec.endDate)}</td>
-                  <td>${rec.total}</td>
-                  <td>${rec.timeRange || ''}</td>
-              </tr>
+                  <tr>
+                      <td>${rec.leaveType}</td>
+                      <td>${formatShiftDate(rec.startDate)}</td>
+                      <td>${formatShiftDate(rec.endDate)}</td>
+                      <td>${rec.total}</td>
+                      <td>${rec.timeRange || ''}</td>
+                  </tr>
       `;
     }
     html += `
-          </tbody>
-      </table>
+              </tbody>
+          </table>
+      </div>
     `;
   }
-  html += `</div>`;
 
-  // Details 2: Overtime
-  html += `
-    <div class="card-detail-section">
-        <div class="section-title">⏰ 加班明細</div>
-  `;
-  if (ots.length === 0) {
-    html += `<div class="empty-details">無加班記錄</div>`;
-  } else {
+  // Details 2: Overtime (Only display if there are records)
+  if (ots.length > 0) {
     html += `
-      <table>
-          <thead>
-              <tr>
-                  <th>開始日期</th>
-                  <th>開始時間</th>
-                  <th>結束日期</th>
-                  <th>結束時間</th>
-                  <th>時數</th>
-              </tr>
-          </thead>
-          <tbody>
+      <div class="card-detail-section">
+          <div class="section-title">⏰ 加班明細</div>
+          <table>
+              <thead>
+                  <tr>
+                      <th>開始日期</th>
+                      <th>開始時間</th>
+                      <th>結束日期</th>
+                      <th>結束時間</th>
+                      <th>時數</th>
+                  </tr>
+              </thead>
+              <tbody>
     `;
     for (const rec of ots) {
       html += `
-              <tr>
-                  <td>${formatShiftDate(rec.startDate)}</td>
-                  <td>${rec.startTime || ''}</td>
-                  <td>${formatShiftDate(rec.endDate)}</td>
-                  <td>${rec.endTime || ''}</td>
-                  <td>${rec.total}</td>
-              </tr>
+                  <tr>
+                      <td>${formatShiftDate(rec.startDate)}</td>
+                      <td>${rec.startTime || ''}</td>
+                      <td>${formatShiftDate(rec.endDate)}</td>
+                      <td>${rec.endTime || ''}</td>
+                      <td>${rec.total}</td>
+                  </tr>
       `;
     }
     html += `
-          </tbody>
-      </table>
+              </tbody>
+          </table>
+      </div>
     `;
   }
-  html += `</div>`;
 
-  // Details 3: Night shift allowance
-  html += `
-    <div class="card-detail-section">
-        <div class="section-title">🌙 小夜班明細 (津貼)</div>
-  `;
-  if (nightShiftRanges.length === 0) {
-    html += `<div class="empty-details">無小夜班記錄</div>`;
-  } else {
+  // Details 3: Night shift allowance (Only display if there are records)
+  if (nightShiftRanges.length > 0) {
     html += `
-      <table>
-          <thead>
-              <tr>
-                  <th>開始日期</th>
-                  <th>結束日期</th>
-                  <th>天數</th>
-              </tr>
-          </thead>
-          <tbody>
+      <div class="card-detail-section">
+          <div class="section-title">🌙 小夜班明細 (津貼)</div>
+          <table>
+              <thead>
+                  <tr>
+                      <th>開始日期</th>
+                      <th>結束日期</th>
+                      <th>天數</th>
+                  </tr>
+              </thead>
+              <tbody>
     `;
     for (const rec of nightShiftRanges) {
       html += `
-              <tr>
-                  <td>${formatShiftDate(rec.startDate)}</td>
-                  <td>${formatShiftDate(rec.endDate)}</td>
-                  <td>${rec.total}</td>
-              </tr>
+                  <tr>
+                      <td>${formatShiftDate(rec.startDate)}</td>
+                      <td>${formatShiftDate(rec.endDate)}</td>
+                      <td>${rec.total}</td>
+                  </tr>
       `;
     }
     html += `
-          </tbody>
-      </table>
+              </tbody>
+          </table>
+      </div>
     `;
   }
-  html += `</div>`;
+
+  // Details 4: Manual Remark
+  const remarkText = state.remarks[empName] || '';
+  if (isExport) {
+    // During export, only display if remark is not empty
+    if (remarkText.trim() !== '') {
+      html += `
+        <div class="card-detail-section remark-section">
+            <div class="section-title">✏️ 備註事項</div>
+            <div class="remark-text-display">${remarkText}</div>
+        </div>
+      `;
+    }
+  } else {
+    // On screen, always display textarea for editing
+    html += `
+      <div class="card-detail-section remark-section">
+          <div class="section-title">✏️ 備註事項</div>
+          <textarea class="remark-input" placeholder="點擊此處輸入備註內容...">${remarkText}</textarea>
+      </div>
+    `;
+  }
 
   card.innerHTML = html;
+
+  // Bind input listener if not exporting
+  if (!isExport) {
+    const textarea = card.querySelector('.remark-input');
+    if (textarea) {
+      textarea.addEventListener('input', (e) => {
+        state.remarks[empName] = e.target.value;
+      });
+    }
+  }
 }
 
 function exportPersonalCardImage(empName) {
@@ -2005,12 +2027,18 @@ function exportPersonalCardImage(empName) {
 
   showToast('正在生成個人圖片，請稍候...', 'warning');
 
+  // Render card for export (hides empty details/remark and removes edit fields)
+  renderPersonalCard(empName, true);
+
   html2canvas(cardElement, {
     scale: 2,
     backgroundColor: '#ffffff',
     useCORS: true,
     logging: false
   }).then(canvas => {
+    // Restore normal view
+    renderPersonalCard(empName, false);
+
     canvas.toBlob(blob => {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -2023,6 +2051,8 @@ function exportPersonalCardImage(empName) {
       showToast('個人出勤圖片下載成功！', 'success');
     }, 'image/png');
   }).catch(err => {
+    // Restore normal view on error
+    renderPersonalCard(empName, false);
     console.error(err);
     showToast(`生成圖片失敗: ${err.message}`, 'error');
   });
@@ -2052,9 +2082,9 @@ async function exportAllCardsToZip() {
       const emp = sortedEmps[i];
       loadingText.textContent = `正在生成圖片 (${i + 1}/${sortedEmps.length}): ${emp}`;
 
-      // 1. Render card in visible DOM
+      // 1. Render card in visible DOM for export
       select.value = emp;
-      renderPersonalCard(emp);
+      renderPersonalCard(emp, true);
 
       // Wait 2 frames for rendering engine to paint the card layout
       await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
@@ -2092,7 +2122,7 @@ async function exportAllCardsToZip() {
   } finally {
     // Restore select value and card display
     select.value = originalSelected;
-    renderPersonalCard(originalSelected);
+    renderPersonalCard(originalSelected, false);
 
     // Hide overlay and reset text
     overlay.style.display = 'none';

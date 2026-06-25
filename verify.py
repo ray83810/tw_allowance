@@ -5,7 +5,7 @@ from datetime import datetime
 
 sys.stdout.reconfigure(encoding='utf-8')
 
-folder = r'c:\Users\User\Downloads\新增資料夾'
+folder = r'c:\Users\User\Downloads\Asurion-antigravity\2026_請假、加班、津貼總表'
 
 # Canonical names
 CANONICAL_NAMES = [

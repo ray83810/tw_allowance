@@ -1194,3 +1194,41 @@ button:focus-visible {
     }
 }
 
+/* 備註欄位樣式 */
+.remark-section {
+    margin-top: 24px;
+}
+
+.remark-input {
+    width: 100%;
+    min-height: 80px;
+    padding: 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    background-color: #f8fafc;
+    color: #000000;
+    font-family: inherit;
+    font-size: 14px;
+    line-height: 1.5;
+    resize: none;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.remark-input:focus {
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 2px rgba(124, 92, 255, 0.15);
+}
+
+.remark-text-display {
+    font-size: 14px;
+    color: #000000;
+    line-height: 1.5;
+    background-color: #f8fafc;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 12px;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
