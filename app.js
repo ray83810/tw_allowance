@@ -2308,10 +2308,16 @@ function showScheduleDiscrepancies(results) {
     warningList.appendChild(groupDiv);
   }
 
+  const titleEl = document.getElementById('discrepancy-title');
   if (totalWarningsCount > 0) {
+    if (titleEl) titleEl.innerHTML = '⚠️ 班表與請假申請表單不一致提醒';
+    warningBox.className = 'warning-box has-warnings';
     warningBox.style.display = 'block';
   } else {
-    warningBox.style.display = 'none';
+    if (titleEl) titleEl.innerHTML = '✅ 班表與請假申請表單比對一致';
+    warningBox.className = 'warning-box is-success';
+    warningList.innerHTML = '<div class="success-message">所有請假紀錄與申請表單比對完全一致，未偵測到任何異常。</div>';
+    warningBox.style.display = 'block';
   }
 }
 

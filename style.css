@@ -1234,22 +1234,44 @@ button:focus-visible {
 
 /* 班表與請假表單不一致警示框 */
 .warning-box {
-    background: rgba(245, 158, 11, 0.05);
-    border: 1px solid rgba(245, 158, 11, 0.3);
     border-radius: 12px;
     padding: 20px;
     margin-bottom: 24px;
     backdrop-filter: blur(10px);
 }
 
+.warning-box.has-warnings {
+    background: rgba(245, 158, 11, 0.05);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.warning-box.is-success {
+    background: rgba(34, 197, 94, 0.05);
+    border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
 .warning-title {
     font-size: 16px;
     font-weight: 600;
-    color: #f59e0b;
     margin-bottom: 12px;
     display: flex;
     align-items: center;
     gap: 8px;
+}
+
+.warning-box.has-warnings .warning-title {
+    color: #f59e0b;
+}
+
+.warning-box.is-success .warning-title {
+    color: #22c55e;
+}
+
+.success-message {
+    font-size: 14px;
+    color: #e8e8f0;
+    line-height: 1.5;
+    padding-left: 6px;
 }
 
 .warning-list {
