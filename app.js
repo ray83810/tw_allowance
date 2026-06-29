@@ -1482,8 +1482,8 @@ function generateUpdatedPtoSheet(results) {
     }
     
     row.push({ f: `SUM(E${rowIdx}:P${rowIdx})` }); // Col Q (已休)
-    row.push({ f: `IF(T${rowIdx}<=C${rowIdx}, 0, MIN(B${rowIdx}, T${rowIdx}-C${rowIdx}))` }); // Col R (PTO remaining)
-    row.push({ f: `IF(T${rowIdx}<=C${rowIdx}, T${rowIdx}, C${rowIdx})` }); // Col S (PTO-AL remaining)
+    row.push({ f: `IF(Q${rowIdx}<=C${rowIdx}, 0, MIN(B${rowIdx}, Q${rowIdx}-C${rowIdx}))` }); // Col R (PTO used)
+    row.push({ f: `IF(Q${rowIdx}<=C${rowIdx}, Q${rowIdx}, C${rowIdx})` }); // Col S (PTO-AL used)
     row.push({ f: `D${rowIdx}-Q${rowIdx}` }); // Col T (未休)
     
     rows.push(row);
