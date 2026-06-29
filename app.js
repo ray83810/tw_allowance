@@ -37,6 +37,10 @@ function parseExcelDate(val) {
   if (!val) return null;
   if (val instanceof Date) {
     if (val.__isNormalized) return val;
+    if (val.getHours() === 0 && val.getMinutes() === 0 && val.getSeconds() === 0 && val.getMilliseconds() === 0) {
+      val.__isNormalized = true;
+      return val;
+    }
     const localDate = new Date(val.getUTCFullYear(), val.getUTCMonth(), val.getUTCDate(), val.getUTCHours(), val.getUTCMinutes(), val.getUTCSeconds());
     localDate.__isNormalized = true;
     return localDate;
@@ -283,12 +287,17 @@ function parseLeaveSheet(ws) {
       const mDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
       mDate.__isNormalized = true;
 
+      const sD = new Date(currentDate.getTime());
+      sD.__isNormalized = true;
+      const eD = new Date(currentDate.getTime());
+      eD.__isNormalized = true;
+
       daily.push({
         applicant,
         leaveType,
         monthDate: mDate,
-        startDate: new Date(currentDate.getTime()),
-        endDate: new Date(currentDate.getTime()),
+        startDate: sD,
+        endDate: eD,
         days: dayVal,
         timeRange,
         monthKey: getMonthKey(mDate)
@@ -387,12 +396,17 @@ function parseCombinedSheet(data) {
           const monthDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
           monthDate.__isNormalized = true;
 
+          const sD = new Date(currentDate.getTime());
+          sD.__isNormalized = true;
+          const eD = new Date(currentDate.getTime());
+          eD.__isNormalized = true;
+
           dailyLeaves.push({
             applicant,
             leaveType,
             monthDate,
-            startDate: new Date(currentDate.getTime()),
-            endDate: new Date(currentDate.getTime()),
+            startDate: sD,
+            endDate: eD,
             days: dayVal,
             timeRange,
             monthKey: getMonthKey(monthDate)
