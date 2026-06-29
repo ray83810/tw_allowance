@@ -2426,10 +2426,10 @@ function isMatchingLeaveType(cellVal, leaveType) {
     return leaveType === 'Asurion Leave亞勝假期';
   }
   if (code === 'SL') {
-    return leaveType === 'Sick Leave病假';
+    return leaveType === 'Sick Leave病假' || leaveType === 'Menstrual Leave病假（生理假)';
   }
   if (code === 'SL-M') {
-    return leaveType === 'Menstrual Leave病假（生理假)';
+    return leaveType === 'Sick Leave病假' || leaveType === 'Menstrual Leave病假（生理假)';
   }
   if (code === 'PL') {
     return leaveType === 'Personal Leave事假';
