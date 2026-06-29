@@ -2214,6 +2214,72 @@ function checkReady() {
   document.getElementById('btn-analyze').disabled = !allLoaded;
 }
 
+function showScheduleDiscrepancies(results) {
+  const warningBox = document.getElementById('discrepancy-warning-box');
+  const warningList = document.getElementById('discrepancy-list');
+  if (!warningBox || !warningList) return;
+
+  warningList.innerHTML = '';
+  const warnings = [];
+
+  const { allEmployees, scheduleMonth, scheduleYear } = results;
+  const dailyLeaves = state.parsed.leave || [];
+
+  for (const emp of allEmployees) {
+    const empSched = state.parsed.employees.find(e => getCanonicalName(e.name, allEmployees) === emp);
+    if (!empSched) continue;
+
+    // Check 1: Schedule has leave, but no application exists in the form
+    for (const [dateStr, cellVal] of Object.entries(empSched.schedule)) {
+      const isLeave = /^(PTO|SL|PL|LOA|ML|BL|FL|AL)\b/i.test(cellVal);
+      if (isLeave) {
+        const hasApp = dailyLeaves.some(rec => {
+          const applicantName = getCanonicalName(rec.applicant, allEmployees);
+          const recDateStr = formatLocalDate(rec.startDate);
+          return applicantName === emp && recDateStr === dateStr;
+        });
+
+        if (!hasApp) {
+          warnings.push(`【請假未申請】員工 <strong>${emp}</strong> 於 <strong>${dateStr}</strong> 的班表標記為「${cellVal}」，但請假申請表無此記錄。`);
+        }
+      }
+    }
+
+    // Check 2: Leave application exists, but schedule does not mark it as leave (e.g. marked as work shift)
+    const empDailyLeaves = dailyLeaves.filter(rec => {
+      const applicantName = getCanonicalName(rec.applicant, allEmployees);
+      const recDateStr = formatLocalDate(rec.startDate);
+      const [y, m] = recDateStr.split('-');
+      return applicantName === emp && parseInt(y) === scheduleYear && parseInt(m) === scheduleMonth;
+    });
+
+    for (const rec of empDailyLeaves) {
+      const recDateStr = formatLocalDate(rec.startDate);
+      const cellVal = empSched.schedule[recDateStr];
+      if (cellVal !== undefined) {
+        const isLeaveOnSched = /^(PTO|SL|PL|LOA|ML|BL|FL|AL)\b/i.test(cellVal);
+        const isOff = /^(OFF|TB|Teambuilding)$/i.test(cellVal);
+        if (!isLeaveOnSched && !isOff) {
+          warnings.push(`【請假標記為上班】員工 <strong>${emp}</strong> 於 <strong>${recDateStr}</strong> 有請假申請（${rec.leaveType}），但班表上卻標記為上班班別「${cellVal}」。`);
+        }
+      }
+    }
+  }
+
+  const uniqueWarnings = [...new Set(warnings)];
+
+  if (uniqueWarnings.length > 0) {
+    for (const w of uniqueWarnings) {
+      const li = document.createElement('li');
+      li.innerHTML = w;
+      warningList.appendChild(li);
+    }
+    warningBox.style.display = 'block';
+  } else {
+    warningBox.style.display = 'none';
+  }
+}
+
 function runAnalysis() {
   const overlay = document.getElementById('loading-overlay');
   overlay.style.display = 'flex';
@@ -2222,6 +2288,7 @@ function runAnalysis() {
     try {
       state.results = calculateAll();
       renderPreview(state.results);
+      showScheduleDiscrepancies(state.results);
 
       document.getElementById('results-section').style.display = 'block';
       document.getElementById('btn-download').style.display = 'inline-flex';

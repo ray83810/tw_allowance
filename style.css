@@ -1232,3 +1232,42 @@ button:focus-visible {
     word-break: break-all;
 }
 
+/* 班表與請假表單不一致警示框 */
+.warning-box {
+    background: rgba(245, 158, 11, 0.05);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 24px;
+    backdrop-filter: blur(10px);
+}
+
+.warning-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #f59e0b;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.warning-list {
+    list-style-type: none;
+    padding-left: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.warning-list li {
+    font-size: 14px;
+    color: #e8e8f0;
+    line-height: 1.5;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.02);
+    border-left: 3px solid #f59e0b;
+    border-radius: 0 6px 6px 0;
+}
+
