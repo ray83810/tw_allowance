@@ -638,7 +638,11 @@ function redistributeLeavesDaily() {
       targetDates = candidates.filter(d => {
         const dateStr = formatLocalDate(d);
         const cellVal = empSched.schedule[dateStr];
-        return cellVal !== undefined && !/^(OFF|TB|Teambuilding)$/i.test(cellVal);
+        if (cellVal === undefined) return false;
+        const valUpper = String(cellVal).trim().toUpperCase();
+        const isOff = valUpper === 'OFF' || valUpper === 'TB' || valUpper === 'TEAMBUILDING' || 
+                      valUpper === '休假' || valUpper === '國定假日' || valUpper === '彈性休假' || valUpper === '例假日';
+        return !isOff;
       });
     }
 
@@ -2496,10 +2500,12 @@ function showScheduleDiscrepancies(results) {
       const cellVal = empSched.schedule[recDateStr];
       if (cellVal !== undefined) {
         const valUpper = String(cellVal).trim().toUpperCase();
-        const isOff = valUpper === 'OFF' || valUpper === 'TB' || valUpper === 'TEAMBUILDING' || valUpper === '休假';
+        const isOff = valUpper === 'OFF' || valUpper === 'TB' || valUpper === 'TEAMBUILDING' || 
+                      valUpper === '休假' || valUpper === '國定假日' || valUpper === '彈性休假' || valUpper === '例假日';
         
         if (isOff) {
-          // If they applied for leave but schedule says OFF/休假, normally we don't block, but let's keep it clean.
+          if (!empWarnings[emp]) empWarnings[emp] = [];
+          empWarnings[emp].push(`【請假標記為放假】於 <strong>${recDateStr}</strong> 有請假申請（${rec.leaveType}），但班表上標記為放假「${cellVal}」。`);
         } else {
           const isMatch = isMatchingLeaveType(cellVal, rec.leaveType);
           if (!isMatch) {
