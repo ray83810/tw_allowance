@@ -3,8 +3,8 @@
    ============================================================ */
 
 const state = {
-  files: { leave: null, overtime: null, schedule: null },
-  workbooks: { leave: null, overtime: null, schedule: null },
+  files: { applicationLeave: null, applicationOvertime: null, schedule: null },
+  workbooks: { applicationLeave: null, applicationOvertime: null, schedule: null },
   parsed: { leave: [], overtime: [], origLeaves: [], origOvertimes: [], employees: [], ptoData: [], holidays: [], scheduleMonth: null, scheduleYear: null, scheduleSheet: null },
   results: null,
   remarks: {} // Store manual remarks by employee name
@@ -260,7 +260,7 @@ function detectFileType(wb) {
     return 'overtime';
   }
   if (sheets.includes('Sheet1') || sheets.includes('班表相關申請表單')) {
-    return 'leave'; // Combined sheet goes to leave card by default
+    return 'combined';
   }
   return null;
 }
@@ -2157,49 +2157,55 @@ async function handleFile(file, expectedType, card) {
     // Auto-detect file type
     const detectedType = detectFileType(wb);
 
-    if (detectedType && detectedType !== expectedType) {
-      // The file was dropped in the wrong zone - auto-redirect
-      const correctCard = document.querySelector(`.upload-card[data-type="${detectedType}"]`);
-      if (correctCard) {
-        card = correctCard;
-        expectedType = detectedType;
+    let isCorrectCard = false;
+    if (expectedType === 'application' && ['leave', 'overtime', 'combined'].includes(detectedType)) {
+      isCorrectCard = true;
+    } else if (expectedType === 'schedule' && detectedType === 'schedule') {
+      isCorrectCard = true;
+    }
+
+    if (!isCorrectCard && detectedType) {
+      const correctCardType = detectedType === 'schedule' ? 'schedule' : 'application';
+      if (correctCardType !== expectedType) {
+        const correctCard = document.querySelector(`.upload-card[data-type="${correctCardType}"]`);
+        if (correctCard) {
+          card = correctCard;
+          expectedType = correctCardType;
+        }
       }
     }
 
-    const finalType = detectedType || expectedType;
-
-    state.files[finalType] = file;
-    state.workbooks[finalType] = wb;
+    const finalType = expectedType; // 'application' or 'schedule'
 
     // Parse immediately
-    if (finalType === 'leave') {
+    if (finalType === 'application') {
       const parsedData = parseApplicationData(wb);
-      state.parsed.leave = parsedData.leave;
-      state.parsed.origLeaves = parsedData.origLeaves;
-
-      // If it is a combined sheet, it might also contain overtime data!
-      if (parsedData.overtime && parsedData.overtime.length > 0) {
+      
+      if (detectedType === 'leave') {
+        state.parsed.leave = parsedData.leave;
+        state.parsed.origLeaves = parsedData.origLeaves;
+        state.files.applicationLeave = file;
+        state.workbooks.applicationLeave = wb;
+      } else if (detectedType === 'overtime') {
         state.parsed.overtime = parsedData.overtime;
         state.parsed.origOvertimes = parsedData.origOvertimes;
-
-        state.files.overtime = file;
-        state.workbooks.overtime = wb;
-
-        // Visually mark overtime card as loaded
-        const otCard = document.querySelector('.upload-card[data-type="overtime"]');
-        if (otCard) {
-          otCard.classList.add('loaded');
-          const otStatus = otCard.querySelector('.file-status');
-          otStatus.classList.add('show');
-          otStatus.innerHTML = `<span class="check">✓</span> ${file.name} (自合併表單載入)`;
-          otCard.querySelector('.drop-zone').style.display = 'none';
-        }
+        state.files.applicationOvertime = file;
+        state.workbooks.applicationOvertime = wb;
+      } else if (detectedType === 'combined') {
+        state.parsed.leave = parsedData.leave;
+        state.parsed.origLeaves = parsedData.origLeaves;
+        state.parsed.overtime = parsedData.overtime;
+        state.parsed.origOvertimes = parsedData.origOvertimes;
+        
+        state.files.applicationLeave = file;
+        state.workbooks.applicationLeave = wb;
+        state.files.applicationOvertime = file;
+        state.workbooks.applicationOvertime = wb;
       }
-    } else if (finalType === 'overtime') {
-      const parsedData = parseApplicationData(wb);
-      state.parsed.overtime = parsedData.overtime;
-      state.parsed.origOvertimes = parsedData.origOvertimes;
     } else if (finalType === 'schedule') {
+      state.files.schedule = file;
+      state.workbooks.schedule = wb;
+
       const schedData = parseScheduleData(wb);
       state.parsed.employees = schedData.employees;
       state.parsed.ptoData = schedData.ptoData;
@@ -2215,8 +2221,39 @@ async function handleFile(file, expectedType, card) {
       targetCard.classList.add('loaded');
       const status = targetCard.querySelector('.file-status');
       status.classList.add('show');
-      status.innerHTML = `<span class="check">✓</span> ${file.name}`;
       targetCard.querySelector('.drop-zone').style.display = 'none';
+
+      if (finalType === 'application') {
+        let html = '';
+        const fLeave = state.files.applicationLeave;
+        const fOvertime = state.files.applicationOvertime;
+
+        if (fLeave && fOvertime) {
+          if (fLeave.name === fOvertime.name) {
+            html = `<div style="display: flex; flex-direction: column; gap: 4px; align-items: flex-start;">
+              <span><span class="check">✓</span> 合併表單：${fLeave.name}</span>
+            </div>`;
+          } else {
+            html = `<div style="display: flex; flex-direction: column; gap: 4px; align-items: flex-start;">
+              <span><span class="check">✓</span> 請假表單：${fLeave.name}</span>
+              <span><span class="check">✓</span> 加班表單：${fOvertime.name}</span>
+            </div>`;
+          }
+        } else if (fLeave) {
+          html = `<div style="display: flex; flex-direction: column; gap: 4px; align-items: flex-start;">
+            <span><span class="check">✓</span> 請假表單：${fLeave.name}</span>
+            <span style="opacity: 0.6; font-size: 12px; margin-left: 18px;">（尚未上傳加班表單，若無則免）</span>
+          </div>`;
+        } else if (fOvertime) {
+          html = `<div style="display: flex; flex-direction: column; gap: 4px; align-items: flex-start;">
+            <span><span class="check">✓</span> 加班表單：${fOvertime.name}</span>
+            <span style="opacity: 0.6; font-size: 12px; margin-left: 18px;">（尚未上傳請假表單，若無則免）</span>
+          </div>`;
+        }
+        status.innerHTML = html;
+      } else {
+        status.innerHTML = `<span class="check">✓</span> ${file.name}`;
+      }
     }
 
     // Show detected info
@@ -2250,7 +2287,7 @@ async function handleFile(file, expectedType, card) {
 }
 
 function checkReady() {
-  const allLoaded = state.workbooks.schedule && (state.workbooks.leave || state.workbooks.overtime);
+  const allLoaded = state.workbooks.schedule && (state.workbooks.applicationLeave || state.workbooks.applicationOvertime);
   document.getElementById('btn-analyze').disabled = !allLoaded;
 }
 
