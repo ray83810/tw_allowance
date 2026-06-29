@@ -2234,7 +2234,7 @@ function showScheduleDiscrepancies(results) {
   if (!warningBox || !warningList) return;
 
   warningList.innerHTML = '';
-  const warnings = [];
+  const empWarnings = {}; // empName -> [warning strings]
 
   const { allEmployees, scheduleMonth, scheduleYear } = results;
   const dailyLeaves = state.parsed.leave || [];
@@ -2254,7 +2254,8 @@ function showScheduleDiscrepancies(results) {
         });
 
         if (!hasApp) {
-          warnings.push(`【請假未申請】員工 <strong>${emp}</strong> 於 <strong>${dateStr}</strong> 的班表標記為「${cellVal}」，但請假申請表無此記錄。`);
+          if (!empWarnings[emp]) empWarnings[emp] = [];
+          empWarnings[emp].push(`【請假未申請】於 <strong>${dateStr}</strong> 的班表標記為「${cellVal}」，但請假申請表無此記錄。`);
         }
       }
     }
@@ -2274,20 +2275,40 @@ function showScheduleDiscrepancies(results) {
         const isLeaveOnSched = /^(PTO|SL|PL|LOA|ML|BL|FL|AL)\b/i.test(cellVal);
         const isOff = /^(OFF|TB|Teambuilding)$/i.test(cellVal);
         if (!isLeaveOnSched && !isOff) {
-          warnings.push(`【請假標記為上班】員工 <strong>${emp}</strong> 於 <strong>${recDateStr}</strong> 有請假申請（${rec.leaveType}），但班表上卻標記為上班班別「${cellVal}」。`);
+          if (!empWarnings[emp]) empWarnings[emp] = [];
+          empWarnings[emp].push(`【請假標記為上班】於 <strong>${recDateStr}</strong> 有請假申請（${rec.leaveType}），但班表上卻標記為上班班別「${cellVal}」。`);
         }
       }
     }
   }
 
-  const uniqueWarnings = [...new Set(warnings)];
+  let totalWarningsCount = 0;
+  for (const [emp, list] of Object.entries(empWarnings)) {
+    const uniqueList = [...new Set(list)];
+    if (uniqueList.length === 0) continue;
 
-  if (uniqueWarnings.length > 0) {
-    for (const w of uniqueWarnings) {
+    totalWarningsCount += uniqueList.length;
+
+    const groupDiv = document.createElement('div');
+    groupDiv.className = 'warning-group';
+
+    const header = document.createElement('div');
+    header.className = 'warning-emp-name';
+    header.innerHTML = `👤 ${emp}`;
+    groupDiv.appendChild(header);
+
+    const ul = document.createElement('ul');
+    ul.className = 'warning-emp-list';
+    for (const w of uniqueList) {
       const li = document.createElement('li');
       li.innerHTML = w;
-      warningList.appendChild(li);
+      ul.appendChild(li);
     }
+    groupDiv.appendChild(ul);
+    warningList.appendChild(groupDiv);
+  }
+
+  if (totalWarningsCount > 0) {
     warningBox.style.display = 'block';
   } else {
     warningBox.style.display = 'none';
