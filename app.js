@@ -572,7 +572,65 @@ function parseScheduleData(wb) {
 }
 
 // ==================== 計算邏輯 ====================
+function redistributeLeavesDaily() {
+  const { employees, origLeaves } = state.parsed;
+  if (!employees || employees.length === 0 || !origLeaves || origLeaves.length === 0) return;
+
+  const allEmployees = employees.map(e => e.name);
+  const dailyLeaves = [];
+
+  for (const rec of origLeaves) {
+    const empName = getCanonicalName(rec.applicant, allEmployees);
+    const empSched = employees.find(e => getCanonicalName(e.name, allEmployees) === empName);
+
+    const candidates = [];
+    let curr = new Date(rec.startDate.getTime());
+    curr.__isNormalized = true;
+    let end = new Date(rec.endDate.getTime());
+    end.__isNormalized = true;
+
+    while (curr <= end) {
+      candidates.push(new Date(curr.getTime()));
+      curr.setDate(curr.getDate() + 1);
+    }
+
+    let targetDates = [];
+    if (empSched) {
+      targetDates = candidates.filter(d => {
+        const dateStr = formatLocalDate(d);
+        const cellVal = empSched.schedule[dateStr];
+        return cellVal !== undefined && !/^(OFF|TB|Teambuilding)$/i.test(cellVal);
+      });
+    }
+
+    if (targetDates.length === 0) {
+      targetDates = candidates;
+    }
+
+    const dayVal = rec.days / targetDates.length;
+    for (const d of targetDates) {
+      d.__isNormalized = true;
+      const mDate = new Date(d.getFullYear(), d.getMonth(), 1);
+      mDate.__isNormalized = true;
+      
+      dailyLeaves.push({
+        applicant: rec.applicant,
+        leaveType: rec.leaveType,
+        monthDate: mDate,
+        startDate: d,
+        endDate: d,
+        days: dayVal,
+        timeRange: rec.timeRange,
+        monthKey: getMonthKey(mDate)
+      });
+    }
+  }
+
+  state.parsed.leave = dailyLeaves;
+}
+
 function calculateAll() {
+  redistributeLeavesDaily();
   const { leave: leaveRecords, overtime: otRecords, employees, ptoData } = state.parsed;
   const { scheduleMonth, scheduleYear } = state.parsed;
   const targetMonthKey = `${scheduleYear}-${String(scheduleMonth).padStart(2, '0')}`;
