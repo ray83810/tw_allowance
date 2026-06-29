@@ -463,7 +463,7 @@ function parseApplicationData(wb) {
 }
 
 // ==================== 解析排班表 ====================
-function parseScheduleData(wb) {
+function parseScheduleData(wb, fileName) {
   const result = { employees: [], ptoData: [], holidays: [], month: null, year: null, scheduleSheetName: null };
 
   // 偵測月份分頁 (如 "202605" 或 "202605v2" 或是包含 "排班" 的頁面)
@@ -477,17 +477,43 @@ function parseScheduleData(wb) {
 
   if (scheduleSheet) {
     result.scheduleSheetName = scheduleSheet;
+    
+    // 智慧型年月份偵測 (結合分頁名稱與檔案名稱)
     let year = 2026, month = 5; // fallback
-    const nameMatch = scheduleSheet.match(/(\d{4})年\s*(\d{1,2})月/);
-    if (nameMatch) {
-      year = parseInt(nameMatch[1]);
-      month = parseInt(nameMatch[2]);
-    } else {
-      const numMatch = scheduleSheet.match(/(\d{4})(\d{2})/);
-      if (numMatch) {
-        year = parseInt(numMatch[1]);
-        month = parseInt(numMatch[2]);
+    let foundYM = false;
+    const sources = [scheduleSheet, fileName || ''];
+    for (const src of sources) {
+      if (!src) continue;
+      const nameMatch = src.match(/(\d{4})年\s*(\d{1,2})月/);
+      if (nameMatch) {
+        year = parseInt(nameMatch[1]);
+        month = parseInt(nameMatch[2]);
+        foundYM = true;
+        break;
       }
+      const numMatch = src.match(/(\d{4})(\d{2})/);
+      if (numMatch) {
+        const y = parseInt(numMatch[1]);
+        const m = parseInt(numMatch[2]);
+        if (m >= 1 && m <= 12) {
+          year = y;
+          month = m;
+          foundYM = true;
+          break;
+        }
+      }
+      const enMonths = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+      const lowerSrc = src.toLowerCase();
+      for (let i = 0; i < enMonths.length; i++) {
+        if (lowerSrc.includes(enMonths[i])) {
+          const yearMatch = src.match(/\b(20\d{2})\b/);
+          year = yearMatch ? parseInt(yearMatch[1]) : 2026;
+          month = i + 1;
+          foundYM = true;
+          break;
+        }
+      }
+      if (foundYM) break;
     }
     result.year = year;
     result.month = month;
@@ -495,7 +521,7 @@ function parseScheduleData(wb) {
     const ws = wb.Sheets[scheduleSheet];
     const data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
 
-    // 尋找日期列 (掃描前 5 列，找出包含至少 15 個日期或 "1日" 格式的列)
+    // 尋找日期列 (掃描前 5 列，找出包含至少 15 個日期、"1日"、或純日數 1~31 的列)
     let dateRowIndex = -1;
     let dates = [];
     let dateStartCol = -1;
@@ -508,17 +534,31 @@ function parseScheduleData(wb) {
       let firstCol = -1;
       for (let c = 1; c < row.length; c++) {
         const val = row[c];
-        if (!val) continue;
+        if (val === undefined || val === null || val === '') continue;
 
         let d = parseExcelDate(val);
         if (d && d.getFullYear() >= 2000) {
           parsedDates.push({ col: c, date: d });
           if (firstCol === -1) firstCol = c;
         } else {
-          const strVal = String(val).trim();
-          const match = strVal.match(/^(\d{1,2})\s*日/);
-          if (match) {
-            const dayNum = parseInt(match[1]);
+          // Check if it's a day number (numeric or string)
+          let dayNum = -1;
+          if (typeof val === 'number' && val >= 1 && val <= 31) {
+            dayNum = val;
+          } else {
+            const strVal = String(val).trim();
+            const match1 = strVal.match(/^(\d{1,2})\s*日?$/); // Match "1", "1日"
+            if (match1) {
+              dayNum = parseInt(match1[1]);
+            } else {
+              const match2 = strVal.match(/^(\d{1,2})\s*日/); // Match "1日(五)"
+              if (match2) {
+                dayNum = parseInt(match2[1]);
+              }
+            }
+          }
+
+          if (dayNum >= 1 && dayNum <= 31) {
             const dateObj = new Date(year, month - 1, dayNum);
             dateObj.__isNormalized = true;
             parsedDates.push({ col: c, date: dateObj });
@@ -2307,7 +2347,7 @@ async function handleFile(file, expectedType, card) {
       state.files.schedule = file;
       state.workbooks.schedule = wb;
 
-      const schedData = parseScheduleData(wb);
+      const schedData = parseScheduleData(wb, file.name);
       state.parsed.employees = schedData.employees;
       state.parsed.ptoData = schedData.ptoData;
       state.parsed.holidays = schedData.holidays;
