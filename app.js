@@ -466,59 +466,98 @@ function parseApplicationData(wb) {
 function parseScheduleData(wb) {
   const result = { employees: [], ptoData: [], holidays: [], month: null, year: null, scheduleSheetName: null };
 
-  // 偵測月份分頁 (如 "202605" 或 "202605v2")
-  const scheduleSheet = wb.SheetNames.find(s => /\d{6}/.test(s));
-  if (scheduleSheet) {
-    const match = scheduleSheet.match(/(\d{4})(\d{2})/);
-    if (match) {
-      result.year = parseInt(match[1]);
-      result.month = parseInt(match[2]);
-      result.scheduleSheetName = scheduleSheet;
-    }
+  // 偵測月份分頁 (如 "202605" 或 "202605v2" 或是包含 "排班" 的頁面)
+  let scheduleSheet = wb.SheetNames.find(s => /\d{6}/.test(s));
+  if (!scheduleSheet) {
+    scheduleSheet = wb.SheetNames.find(s => s.includes('排班') || s.includes('班表') || s.includes('Sheet1'));
+  }
+  if (!scheduleSheet) {
+    scheduleSheet = wb.SheetNames[0];
   }
 
-  // 解析月份分頁 - 取得員工列表和班表
   if (scheduleSheet) {
+    result.scheduleSheetName = scheduleSheet;
+    let year = 2026, month = 5; // fallback
+    const nameMatch = scheduleSheet.match(/(\d{4})年\s*(\d{1,2})月/);
+    if (nameMatch) {
+      year = parseInt(nameMatch[1]);
+      month = parseInt(nameMatch[2]);
+    } else {
+      const numMatch = scheduleSheet.match(/(\d{4})(\d{2})/);
+      if (numMatch) {
+        year = parseInt(numMatch[1]);
+        month = parseInt(numMatch[2]);
+      }
+    }
+    result.year = year;
+    result.month = month;
+
     const ws = wb.Sheets[scheduleSheet];
     const data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
 
-    // 取得日期列 (動態尋找第二列中第一個為 2000 年之後的日期欄位)
-    const dates = [];
+    // 尋找日期列 (掃描前 5 列，找出包含至少 15 個日期或 "1日" 格式的列)
+    let dateRowIndex = -1;
+    let dates = [];
     let dateStartCol = -1;
-    if (data.length > 1) {
-      for (let c = 0; c < data[1].length; c++) {
-        const d = parseExcelDate(data[1][c]);
+
+    for (let r = 0; r < Math.min(5, data.length); r++) {
+      const row = data[r];
+      if (!row) continue;
+
+      const parsedDates = [];
+      let firstCol = -1;
+      for (let c = 1; c < row.length; c++) {
+        const val = row[c];
+        if (!val) continue;
+
+        let d = parseExcelDate(val);
         if (d && d.getFullYear() >= 2000) {
-          dateStartCol = c;
-          break;
+          parsedDates.push({ col: c, date: d });
+          if (firstCol === -1) firstCol = c;
+        } else {
+          const strVal = String(val).trim();
+          const match = strVal.match(/^(\d{1,2})\s*日/);
+          if (match) {
+            const dayNum = parseInt(match[1]);
+            const dateObj = new Date(year, month - 1, dayNum);
+            dateObj.__isNormalized = true;
+            parsedDates.push({ col: c, date: dateObj });
+            if (firstCol === -1) firstCol = c;
+          }
         }
       }
-      
-      if (dateStartCol !== -1) {
-        for (let c = dateStartCol; c < data[1].length; c++) {
-          const d = parseExcelDate(data[1][c]);
-          if (d && d.getFullYear() >= 2000) dates.push({ col: c, date: d });
-        }
+
+      if (parsedDates.length >= 15) {
+        dates = parsedDates;
+        dateRowIndex = r;
+        dateStartCol = firstCol;
+        break;
       }
     }
 
-    // 取得員工資料 (rows where col A has a name and col B has shift time)
-    if (dateStartCol !== -1) {
-      for (let r = 2; r < data.length; r++) {
+    // 取得員工資料
+    if (dateRowIndex !== -1) {
+      for (let r = dateRowIndex + 1; r < data.length; r++) {
         const row = data[r];
+        if (!row) continue;
         const name = normalizeName(row[0]);
-        const shift = String(row[1] || '').trim();
+        if (!name) continue;
+        if (name.includes('總計') || name.includes('Total') || name.includes('人數') || name.includes('日期') || name.includes('客服人員') || name.includes('平均') || name.includes('欄位') || name.includes('姓名')) continue;
 
-        if (!name || !shift.match(/\d{2}:\d{2}/)) continue;
+        let shift = '';
+        let offDays = '';
+        let workDays = 0, offCount = 0, ptoCount = 0, ptoAlCount = 0, loaCount = 0;
 
-        const offDays = String(row[2] || '');
-        const workDays = toNum(row[dateStartCol - 5]);
-        const offCount = toNum(row[dateStartCol - 4]);
-        const ptoCount = toNum(row[dateStartCol - 3]);
-        const ptoAlCount = toNum(row[dateStartCol - 2]);
-        const loaCount = toNum(row[dateStartCol - 1]);
+        if (dateStartCol > 5) {
+          shift = String(row[1] || '').trim();
+          offDays = String(row[2] || '');
+          workDays = toNum(row[dateStartCol - 5]);
+          offCount = toNum(row[dateStartCol - 4]);
+          ptoCount = toNum(row[dateStartCol - 3]);
+          ptoAlCount = toNum(row[dateStartCol - 2]);
+          loaCount = toNum(row[dateStartCol - 1]);
+        }
 
-        // 取得每日班表
         const schedule = {};
         for (const { col, date } of dates) {
           const val = String(row[col] || '').trim();
@@ -2349,6 +2388,69 @@ function checkReady() {
   document.getElementById('btn-analyze').disabled = !allLoaded;
 }
 
+function getLeaveCodeFromCell(cellVal) {
+  if (!cellVal) return '';
+  const val = String(cellVal).trim().toUpperCase();
+  
+  if (val.startsWith('PTO') || val === '特休' || val === '特別休假') return 'PTO';
+  if (val.startsWith('PTO-AL') || val === '亞勝假期' || val === '亞勝') return 'PTO-AL';
+  if (val === 'SL' || val === '病假') return 'SL';
+  if (val === 'SL-M' || val === '生理假') return 'SL-M';
+  if (val === 'PL' || val === '事假') return 'PL';
+  if (val.startsWith('OL') || val.startsWith('公假')) return 'OL';
+  if (val === 'ML' || val === '婚假') return 'ML';
+  if (val === 'BL' || val === '喪假') return 'BL';
+  if (val === 'FL' || val === '家庭照顧假' || val === '家照假') return 'FL';
+  if (val.startsWith('AL') || val === '產假') return 'AL';
+  if (val === 'LOA' || val === '留停' || val === '留職停薪') return 'LOA';
+  
+  const match = val.match(/^(PTO|SL|PL|LOA|ML|BL|FL|AL|OL)\b/i);
+  if (match) return match[1].toUpperCase();
+
+  return '';
+}
+
+function isMatchingLeaveType(cellVal, leaveType) {
+  if (!cellVal || !leaveType) return false;
+  const code = getLeaveCodeFromCell(cellVal);
+  if (!code) return false;
+  
+  if (code === 'PTO') {
+    return leaveType === 'Annual Leave特別休假';
+  }
+  if (code === 'PTO-AL') {
+    return leaveType === 'Asurion Leave亞勝假期';
+  }
+  if (code === 'SL') {
+    return leaveType === 'Sick Leave病假';
+  }
+  if (code === 'SL-M') {
+    return leaveType === 'Menstrual Leave病假（生理假)';
+  }
+  if (code === 'PL') {
+    return leaveType === 'Personal Leave事假';
+  }
+  if (code === 'OL') {
+    return leaveType.includes('Official Leave') || leaveType.includes('公假');
+  }
+  if (code === 'ML') {
+    return leaveType === 'Marriage Leave婚假';
+  }
+  if (code === 'BL') {
+    return leaveType === 'Bereavement Leave喪假';
+  }
+  if (code === 'FL') {
+    return leaveType === 'Family Care Leave家庭照顧假';
+  }
+  if (code === 'AL') {
+    return leaveType.includes('Maternity') || leaveType.includes('Paternity') || leaveType.includes('產假') || leaveType.includes('陪產假');
+  }
+  if (code === 'LOA') {
+    return leaveType === 'LOA留職停薪';
+  }
+  return false;
+}
+
 function showScheduleDiscrepancies(results) {
   const warningBox = document.getElementById('discrepancy-warning-box');
   const warningList = document.getElementById('discrepancy-list');
@@ -2364,24 +2466,24 @@ function showScheduleDiscrepancies(results) {
     const empSched = state.parsed.employees.find(e => getCanonicalName(e.name, allEmployees) === emp);
     if (!empSched) continue;
 
-    // Check 1: Schedule has leave, but no application exists in the form
+    // Check 1: Schedule has leave, but no application matches in the form
     for (const [dateStr, cellVal] of Object.entries(empSched.schedule)) {
-      const isLeave = /^(PTO|SL|PL|LOA|ML|BL|FL|AL)\b/i.test(cellVal);
-      if (isLeave) {
+      const leaveCode = getLeaveCodeFromCell(cellVal);
+      if (leaveCode !== '') {
         const hasApp = dailyLeaves.some(rec => {
           const applicantName = getCanonicalName(rec.applicant, allEmployees);
           const recDateStr = formatLocalDate(rec.startDate);
-          return applicantName === emp && recDateStr === dateStr;
+          return applicantName === emp && recDateStr === dateStr && isMatchingLeaveType(cellVal, rec.leaveType);
         });
 
         if (!hasApp) {
           if (!empWarnings[emp]) empWarnings[emp] = [];
-          empWarnings[emp].push(`【請假未申請】於 <strong>${dateStr}</strong> 的班表標記為「${cellVal}」，但請假申請表無此記錄。`);
+          empWarnings[emp].push(`【請假未申請】於 <strong>${dateStr}</strong> 的班表標記為「${cellVal}」，但請假申請表無此記錄或假別不符。`);
         }
       }
     }
 
-    // Check 2: Leave application exists, but schedule does not mark it as leave (e.g. marked as work shift)
+    // Check 2: Leave application exists, but schedule does not match
     const empDailyLeaves = dailyLeaves.filter(rec => {
       const applicantName = getCanonicalName(rec.applicant, allEmployees);
       const recDateStr = formatLocalDate(rec.startDate);
@@ -2393,11 +2495,17 @@ function showScheduleDiscrepancies(results) {
       const recDateStr = formatLocalDate(rec.startDate);
       const cellVal = empSched.schedule[recDateStr];
       if (cellVal !== undefined) {
-        const isLeaveOnSched = /^(PTO|SL|PL|LOA|ML|BL|FL|AL)\b/i.test(cellVal);
-        const isOff = /^(OFF|TB|Teambuilding)$/i.test(cellVal);
-        if (!isLeaveOnSched && !isOff) {
-          if (!empWarnings[emp]) empWarnings[emp] = [];
-          empWarnings[emp].push(`【請假標記為上班】於 <strong>${recDateStr}</strong> 有請假申請（${rec.leaveType}），但班表上卻標記為上班班別「${cellVal}」。`);
+        const valUpper = String(cellVal).trim().toUpperCase();
+        const isOff = valUpper === 'OFF' || valUpper === 'TB' || valUpper === 'TEAMBUILDING' || valUpper === '休假';
+        
+        if (isOff) {
+          // If they applied for leave but schedule says OFF/休假, normally we don't block, but let's keep it clean.
+        } else {
+          const isMatch = isMatchingLeaveType(cellVal, rec.leaveType);
+          if (!isMatch) {
+            if (!empWarnings[emp]) empWarnings[emp] = [];
+            empWarnings[emp].push(`【請假類別不符】於 <strong>${recDateStr}</strong> 有請假申請（${rec.leaveType}），但班表上卻標記為「${cellVal}」。`);
+          }
         }
       }
     }
