@@ -12,18 +12,18 @@ const state = {
 
 // ==================== 假別對照表 ====================
 const LEAVE_TYPE_MAP = {
-  'Annual Leave特別休假': { code: 'PTO', label: 'Annual Leave\n特別休假', shortLabel: '特休', category: 'pto' },
-  'Asurion Leave亞勝假期': { code: 'PTO-AL', label: 'Asurion Leave\n亞勝假期', shortLabel: '亞勝假期', category: 'pto' },
-  'Sick Leave病假': { code: 'SL', label: 'Sick Leave\n病假', shortLabel: '病假', category: 'other' },
-  'Menstrual Leave病假（生理假)': { code: 'SL-M', label: 'Menstrual Leave\n病假（生理假)', shortLabel: '生理假', category: 'other' },
-  'Personal Leave事假': { code: 'PL', label: 'Personal Leave事假', shortLabel: '事假', category: 'other' },
-  'Official Leave公假': { code: 'LOA', label: 'Official Leave公假', shortLabel: '公假', category: 'other' },
-  'Official Leave公假（金融市場常識與職業道德考試）': { code: 'LOA', label: 'Official Leave公假', shortLabel: '公假', category: 'other' },
-  'Official Leave公假（財產保險業務員資格證照考試)': { code: 'LOA', label: 'Official Leave公假', shortLabel: '公假', category: 'other' },
-  'Official Leave公假（健檢)': { code: 'LOA', label: 'Official Leave公假', shortLabel: '公假', category: 'other' },
-  'Marriage Leave婚假': { code: 'ML', label: 'Marriage Leave婚假', shortLabel: '婚假', category: 'other' },
-  'Bereavement Leave喪假': { code: 'BL', label: 'Bereavement Leave喪假', shortLabel: '喪假', category: 'other' },
-  'Family Care Leave家庭照顧假': { code: 'FL', label: 'Family Care Leave家庭照顧假', shortLabel: '家庭假', category: 'other' }
+  'Annual Leave特別休假': { code: 'PTO', label: 'Annual Leave', shortLabel: 'PTO', category: 'pto' },
+  'Asurion Leave亞勝假期': { code: 'PTO-AL', label: 'Asurion Leave', shortLabel: 'PTO-AL', category: 'pto' },
+  'Sick Leave病假': { code: 'SL', label: 'Sick Leave', shortLabel: 'SL', category: 'other' },
+  'Menstrual Leave病假（生理假)': { code: 'SL-M', label: 'Menstrual Leave', shortLabel: 'SL-M', category: 'other' },
+  'Personal Leave事假': { code: 'PL', label: 'Personal Leave', shortLabel: 'PL', category: 'other' },
+  'Official Leave公假': { code: 'LOA', label: 'Official Leave', shortLabel: 'LOA', category: 'other' },
+  'Official Leave公假（金融市場常識與職業道德考試）': { code: 'LOA', label: 'Official Leave', shortLabel: 'LOA', category: 'other' },
+  'Official Leave公假（財產保險業務員資格證照考試)': { code: 'LOA', label: 'Official Leave', shortLabel: 'LOA', category: 'other' },
+  'Official Leave公假（健檢)': { code: 'LOA', label: 'Official Leave', shortLabel: 'LOA', category: 'other' },
+  'Marriage Leave婚假': { code: 'ML', label: 'Marriage Leave', shortLabel: 'ML', category: 'other' },
+  'Bereavement Leave喪假': { code: 'BL', label: 'Bereavement Leave', shortLabel: 'BL', category: 'other' },
+  'Family Care Leave家庭照顧假': { code: 'FL', label: 'Family Care Leave', shortLabel: 'FL', category: 'other' }
 };
 
 const LEAVE_CODE_ORDER = ['PTO', 'PTO-AL', 'SL', 'SL-M', 'PL', 'LOA', 'ML', 'BL', 'FL'];
@@ -1009,8 +1009,8 @@ function applyTableBorders(ws, startCol, endCol, rowStart, rowEnd) {
 function generateLeaveExcel(results) {
   const wb = XLSX.utils.book_new();
 
-  // --- Sheet 1: 請假整理 ---
-  const { monthlyLeave, monthlyLeaveTypes, yearlyLeave, yearlyLeaveTypes, allEmployees, scheduleYear, scheduleMonth, leaveDetails } = results;
+  // --- Sheet 1: Leave_Statistics ---
+  const { monthlyLeave, monthlyLeaveTypes, allEmployees, scheduleYear, scheduleMonth, leaveDetails } = results;
 
   const sortedMonthlyTypes = monthlyLeaveTypes.sort((a, b) => {
     const ia = LEAVE_CODE_ORDER.indexOf(LEAVE_TYPE_MAP[a]?.code);
@@ -1018,19 +1018,13 @@ function generateLeaveExcel(results) {
     return ia - ib;
   });
 
-  const sortedYearlyTypes = yearlyLeaveTypes.sort((a, b) => {
-    const ia = LEAVE_CODE_ORDER.indexOf(LEAVE_TYPE_MAP[a]?.code);
-    const ib = LEAVE_CODE_ORDER.indexOf(LEAVE_TYPE_MAP[b]?.code);
-    return ia - ib;
-  });
-
   // Build left-hand side rows
   const leftRows = [];
-  leftRows.push(['月份', `${scheduleYear}/${scheduleMonth}/1`]);
+  leftRows.push(['Month', `${scheduleYear}/${scheduleMonth}/1`]);
   leftRows.push([]);
-  leftRows.push(['當月請假統計']);
+  leftRows.push(['Monthly Leave Statistics (Unit: Day)']);
   
-  const monthlyHdr = ['', ...sortedMonthlyTypes.map(t => LEAVE_TYPE_MAP[t].label), '總計'];
+  const monthlyHdr = ['Name', ...sortedMonthlyTypes.map(t => LEAVE_TYPE_MAP[t].label.replace('\n', ' ')), 'Total'];
   leftRows.push(monthlyHdr);
 
   const empWithLeave = allEmployees.filter(e => monthlyLeave[e]);
@@ -1048,7 +1042,7 @@ function generateLeaveExcel(results) {
 
   // Totals row for monthly summary
   const totalRowIdx = empWithLeave.length + 6;
-  const totalRow = ['總計'];
+  const totalRow = ['Total'];
   for (let c = 2; c <= sortedMonthlyTypes.length + 1; c++) {
     const colLetter = getColLetter(c);
     totalRow.push({ f: `SUM(${colLetter}6:${colLetter}${totalRowIdx - 1})` });
@@ -1057,47 +1051,14 @@ function generateLeaveExcel(results) {
   totalRow.push({ f: `SUM(${lastColLetter}6:${lastColLetter}${totalRowIdx - 1})` });
   leftRows.push(totalRow);
 
+  leftRows.push(['Applicant', '(All)']);
   leftRows.push([]);
-  leftRows.push(['申請人', '(全部)']);
-  leftRows.push([]);
-
-  // 年度請假統計
-  leftRows.push([`${scheduleYear}年度請假統計`]);
-  const yHdr = ['', ...sortedYearlyTypes.map(t => LEAVE_TYPE_MAP[t].label), '總計'];
-  leftRows.push(yHdr);
-
-  const sortedMonths = Object.keys(yearlyLeave).sort();
-  const yearlyStartRowIdx = totalRowIdx + 5; // e.g. 14 + 5 = 19
-  for (let i = 0; i < sortedMonths.length; i++) {
-    const mk = sortedMonths[i];
-    const pts = mk.split('-');
-    const dateStr = `${pts[0]}/${parseInt(pts[1])}/1`;
-    const rowIdx = yearlyStartRowIdx + i + 1;
-    const row = [dateStr];
-    for (const lt of sortedYearlyTypes) {
-      row.push(yearlyLeave[mk]?.[lt] || '');
-    }
-    const lastYColLetter = getColLetter(sortedYearlyTypes.length + 1);
-    row.push({ f: `SUM(B${rowIdx}:${lastYColLetter}${rowIdx})` });
-    leftRows.push(row);
-  }
-
-  // Year totals
-  const yTotalRowIdx = yearlyStartRowIdx + sortedMonths.length + 1;
-  const yTotal = ['總計'];
-  for (let c = 2; c <= sortedYearlyTypes.length + 1; c++) {
-    const colLetter = getColLetter(c);
-    yTotal.push({ f: `SUM(${colLetter}${yearlyStartRowIdx + 1}:${colLetter}${yTotalRowIdx - 1})` });
-  }
-  const lastYColLetter = getColLetter(sortedYearlyTypes.length + 1);
-  yTotal.push({ f: `SUM(${lastYColLetter}${yearlyStartRowIdx + 1}:${lastYColLetter}${yTotalRowIdx - 1})` });
-  leftRows.push(yTotal);
 
   // Combine Left and Right Tables
   const rows1 = [];
   rows1.push([]); // Row 1 is empty
 
-  const maxLeftCols = Math.max(sortedMonthlyTypes.length, sortedYearlyTypes.length);
+  const maxLeftCols = sortedMonthlyTypes.length;
   const maxLen = Math.max(leftRows.length, leaveDetails.length + 4);
   const rightStartColIdx = maxLeftCols + 4; // e.g. max 5 types -> index 9 (Column J)
 
@@ -1117,7 +1078,7 @@ function generateLeaveExcel(results) {
       const rightRowIdx = i - 2; // 0 for Row 4 (Excel Row 4)
       if (rightRowIdx === 0) {
         row[rightStartColIdx] = 'Name';
-        row[rightStartColIdx + 1] = 'Type of Leave';
+        row[rightStartColIdx + 1] = 'Leave Type';
         row[rightStartColIdx + 2] = 'Start Date';
         row[rightStartColIdx + 3] = 'End Date';
         row[rightStartColIdx + 4] = 'Total';
@@ -1125,7 +1086,7 @@ function generateLeaveExcel(results) {
       } else if (rightRowIdx - 1 < leaveDetails.length) {
         const rec = leaveDetails[rightRowIdx - 1];
         row[rightStartColIdx] = rec.name;
-        row[rightStartColIdx + 1] = rec.leaveType;
+        row[rightStartColIdx + 1] = LEAVE_TYPE_MAP[rec.leaveType]?.label.replace('\n', ' ') || rec.leaveType;
         row[rightStartColIdx + 2] = formatShiftDate(rec.startDate);
         row[rightStartColIdx + 3] = formatShiftDate(rec.endDate);
         row[rightStartColIdx + 4] = rec.total;
@@ -1162,10 +1123,9 @@ function generateLeaveExcel(results) {
 
   // Apply borders
   applyTableBorders(ws1, 0, sortedMonthlyTypes.length + 1, 3, totalRowIdx - 1);
-  applyTableBorders(ws1, 0, sortedYearlyTypes.length + 1, yearlyStartRowIdx - 1, yTotalRowIdx - 1);
   applyTableBorders(ws1, rightStartColIdx, rightStartColIdx + 5, 2, leaveDetails.length + 2);
 
-  XLSX.utils.book_append_sheet(wb, ws1, '請假整理');
+  XLSX.utils.book_append_sheet(wb, ws1, 'Leave_Statistics');
 
   return wb;
 }
@@ -1173,7 +1133,7 @@ function generateLeaveExcel(results) {
 function generateOvertimeExcel(results) {
   const wb = XLSX.utils.book_new();
 
-  // --- Sheet 1: 加班整理 ---
+  // --- Sheet 1: Overtime_Statistics ---
   const { otStats, otDates, allEmployees, otDetails } = results;
   const empsWithOT = allEmployees.filter(e => otStats[e]);
   const sortedDates = otDates.sort();
@@ -1182,14 +1142,14 @@ function generateOvertimeExcel(results) {
   const leftRows = [];
   leftRows.push([]);
   leftRows.push([]);
-  leftRows.push(['加總 - 共加班幾個小時']);
+  leftRows.push(['Monthly Overtime Statistics (Unit: Hour)']);
 
   // Header row with dates
   const formattedDates = sortedDates.map(d => {
     const pts = d.split('-');
     return `${parseInt(pts[0])}/${parseInt(pts[1])}/${parseInt(pts[2])}`;
   });
-  const hdr = ['', ...formattedDates, '總計'];
+  const hdr = ['Name', ...formattedDates, 'Total'];
   leftRows.push(hdr);
 
   // Employee rows (Formula-based row sums)
@@ -1207,7 +1167,7 @@ function generateOvertimeExcel(results) {
 
   // Totals Row (Formula-based column sums)
   const totalRowIdx = empsWithOT.length + 5;
-  const totalRow = ['總計'];
+  const totalRow = ['Total'];
   for (let c = 2; c <= sortedDates.length + 1; c++) {
     const colLetter = getColLetter(c);
     totalRow.push({ f: `SUM(${colLetter}5:${colLetter}${totalRowIdx - 1})` });
@@ -1247,71 +1207,30 @@ function generateOvertimeExcel(results) {
         row[rightStartColIdx + 1] = formatShiftDate(rec.startDate);
         row[rightStartColIdx + 2] = rec.startTime;
         row[rightStartColIdx + 3] = formatShiftDate(rec.endDate);
-        row[rightStartColIdx + 4] = rec.endTime;
-        row[rightStartColIdx + 5] = rec.total;
-      }
-    }
-
-    // Clean undefined cells to empty strings
-    for (let c = 0; c < row.length; c++) {
-      if (row[c] === undefined) row[c] = '';
-    }
-
-    rows.push(row);
-  }
-
-  const ws1 = XLSX.utils.aoa_to_sheet(rows);
-
-  // Column width config
-  const colsConfig = [];
-  colsConfig[0] = { wch: 16 };
-  for (let c = 1; c <= sortedDates.length; c++) {
-    colsConfig[c] = { wch: 8 };
-  }
-  colsConfig[sortedDates.length + 1] = { wch: 10 };
-  colsConfig[sortedDates.length + 2] = { wch: 5 }; // empty divider 1
-  colsConfig[sortedDates.length + 3] = { wch: 5 }; // empty divider 2
-  colsConfig[rightStartColIdx] = { wch: 16 };
-  colsConfig[rightStartColIdx + 1] = { wch: 12 };
-  colsConfig[rightStartColIdx + 2] = { wch: 10 };
-  colsConfig[rightStartColIdx + 3] = { wch: 12 };
-  colsConfig[rightStartColIdx + 4] = { wch: 10 };
-  colsConfig[rightStartColIdx + 5] = { wch: 8 };
-  ws1['!cols'] = colsConfig;
-
-  // Apply borders
-  applyTableBorders(ws1, 0, sortedDates.length + 1, 3, totalRowIdx - 1);
-  applyTableBorders(ws1, rightStartColIdx, rightStartColIdx + 5, 3, 3 + otDetails.length);
-
-  XLSX.utils.book_append_sheet(wb, ws1, '加班整理');
-
-  return wb;
-}
-
-function generateTotalLeaveExcel(results) {
+        row[rightStartCofunction generateTotalLeaveExcel(results) {
   const wb = XLSX.utils.book_new();
   const { totalStats, ptoSummary, allEmployees, monthlyDetail, scheduleYear, scheduleMonth } = results;
 
-  // --- Sheet 1: 統計表 ---
+  // --- Sheet 1: Summary Sheet ---
   const rows = [];
 
   // Row 1: headers
-  const r1 = [scheduleYear, '', '', '特休'];
+  const r1 = [scheduleYear, '', '', 'PTO'];
   for (let i = 0; i < 13; i++) r1.push('');
-  r1.push('病假/事假/曠職/遲到');
+  r1.push('Sick/Personal/Absent/Late');
   for (let i = 0; i < 10; i++) r1.push('');
   rows.push(r1);
 
   // Row 2: sub headers
-  const r2 = ['', '特別\n休假', '亞勝\n假期'];
+  const r2 = ['', 'Annual\nLeave', 'Asurion\nLeave'];
   for (let m = 1; m <= 12; m++) {
     r2.push(`${scheduleYear}/${m}/1`); // formatted date string
   }
-  r2.push('已休\n總天數', '剩餘\n天數', '', '', '病假', '生理假', '事假', '公假', '婚假', '喪假', '家庭假', '遲到', '曠職', '');
+  r2.push('Total Used\nDays', 'Remaining\nDays', '', '', 'Sick Leave', 'Menstrual Leave', 'Personal Leave', 'Official Leave', 'Marriage Leave', 'Bereavement Leave', 'Family Care Leave', 'Late', 'Absent', '');
   rows.push(r2);
 
   // Row 3: code headers
-  const r3 = ['', '', '', ...Array(12).fill('已用天數'), '', '', '病假', '生理假', 'SL', 'SL-M', 'PL', 'LOA', 'ML', 'BL', 'FL', '', '', ''];
+  const r3 = ['', '', '', ...Array(12).fill('Days Used'), '', '', 'Sick', 'Menstrual', 'SL', 'SL-M', 'PL', 'LOA', 'ML', 'BL', 'FL', '', '', ''];
   rows.push(r3);
 
   // Employee rows with full formulas matching target
@@ -1354,41 +1273,42 @@ function generateTotalLeaveExcel(results) {
   const ws1 = XLSX.utils.aoa_to_sheet(rows);
   ws1['!cols'] = [{ wch: 16 }, { wch: 8 }, { wch: 8 }, ...Array(12).fill({ wch: 10 }), { wch: 10 }, { wch: 8 }, { wch: 6 }, { wch: 6 }, ...Array(9).fill({ wch: 6 })];
   applyTableBorders(ws1, 0, 27, 0, allEmployees.length + 2);
-  
+
   const lastDay = new Date(scheduleYear, scheduleMonth, 0).getDate();
-  const summarySheetName = `統計表(統計至${scheduleMonth}.${lastDay}`;
+  const monthName = MONTH_NAMES_EN[scheduleMonth - 1];
+  const summarySheetName = `Summary (As of ${monthName} ${lastDay})`;
   XLSX.utils.book_append_sheet(wb, ws1, summarySheetName);
 
   // --- Monthly Sheets (Jan ~ Dec) ---
   const leaveTypeLabels = [
-    ['PTO', 'Annual Leave特別休假'],
-    ['PTO-AL', 'Asurion Leave亞勝假期'],
-    ['Half-PTO/PTO-Half', '上特/下特'],
-    ['Half-AL/AL-Half', '上亞勝假期/下亞勝假期\n'],
-    ['SL', 'Sick Leave病假'],
-    ['SL-M', 'Menstrual Leave病假（生理假)'],
-    ['PL', 'Personal Leave事假'],
-    ['LOA', 'Official Leave公假'],
-    ['LOA', 'Official Leave公假（金融市場常識與職業道德考試）'],
-    ['LOA', 'Official Leave公假（財產保險業務員資格證照考試)'],
-    ['LOA', 'Official Leave公假（健檢)'],
-    ['ML', 'Marriage Leave婚假'],
-    ['', 'Maternity Leave產假'],
-    ['', 'Paternity Leave陪產假'],
-    ['', 'Pregnancy Checkup Accompaniment Leave陪產檢假'],
-    ['BL', 'Bereavement Leave喪假'],
-    ['FL', 'Family Care Leave家庭照顧假'],
+    ['PTO', 'Annual Leave'],
+    ['PTO-AL', 'Asurion Leave'],
+    ['Half-PTO/PTO-Half', 'Half-PTO/PTO-Half'],
+    ['Half-AL/AL-Half', 'Half-AL/AL-Half'],
+    ['SL', 'Sick Leave'],
+    ['SL-M', 'Menstrual Leave'],
+    ['PL', 'Personal Leave'],
+    ['LOA', 'Official Leave'],
+    ['LOA', 'Official Leave (Financial Exam)'],
+    ['LOA', 'Official Leave (Insurance Exam)'],
+    ['LOA', 'Official Leave (Physical Exam)'],
+    ['ML', 'Marriage Leave'],
+    ['', 'Maternity Leave'],
+    ['', 'Paternity Leave'],
+    ['', 'Pregnancy Checkup Accompaniment Leave'],
+    ['BL', 'Bereavement Leave'],
+    ['FL', 'Family Care Leave'],
   ];
 
   for (let m = 1; m <= 12; m++) {
     const mRows = [];
-    const monthNameZh = MONTH_NAMES_ZH[m - 1];
-    const sheetName = MONTH_NAMES_EN[m - 1] + (m === 1 ? ' ' : '');
+    const monthNameEn = MONTH_NAMES_EN[m - 1];
+    const sheetName = monthNameEn + (m === 1 ? ' ' : '');
 
     // Row 1: header
-    mRows.push(['', '', `${scheduleYear}${monthNameZh}`]);
+    mRows.push(['', '', `${scheduleYear} ${monthNameEn}`]);
     // Row 2: column headers
-    mRows.push(['', '', '', '特休', '亞勝假期', '病假', '生理假', '事假', '公假', '婚假', '喪假', '家庭假', '遲到', '曠職']);
+    mRows.push(['', '', '', 'PTO', 'Asurion Leave', 'Sick Leave', 'Menstrual Leave', 'Personal Leave', 'Official Leave', 'Marriage Leave', 'Bereavement Leave', 'Family Care Leave', 'Late', 'Absent']);
     // Row 3: code headers
     mRows.push(['', '', '', 'PTO', 'PTO-AL', 'SL', 'SL-M', 'PL', 'LOA', 'ML', 'BL', 'FL', '', '']);
 
@@ -1456,7 +1376,7 @@ function generateUpdatedPtoSheet(results) {
   const rows = [];
   
   // Headers
-  rows.push(['English Name ', 'PTO', 'PTO-AL', 'TTL', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', '已休', 'PTO', 'PTO-AL', '未休']);
+  rows.push(['English Name', 'PTO', 'PTO-AL', 'TTL', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Used', 'PTO', 'PTO-AL', 'Remaining']);
   
   for (let i = 0; i < allEmployees.length; i++) {
     const emp = allEmployees[i];
@@ -1501,7 +1421,7 @@ function generateAllowanceSheet(results) {
 
   const rows = [];
   // Row 1: Headers
-  rows.push(['津貼統計(以天數計)', '小夜天數', '', '', 'Name', 'Start Date', 'End Date', 'Total']);
+  rows.push(['Monthly Allowance Statistics (Unit: Day)', 'Night Shift Days', '', '', 'Name', 'Start Date', 'End Date', 'Total']);
 
   const maxRows = Math.max(summary.length + 1, details.length); // excluding header
 
@@ -1827,29 +1747,29 @@ function downloadAll() {
 
   const mergedWb = XLSX.utils.book_new();
 
-  // 1. 請假統計 (請假整理 sheet renamed to 請假統計)
+  // 1. Leave Statistics
   const leaveWb = generateLeaveExcel(state.results);
-  XLSX.utils.book_append_sheet(mergedWb, leaveWb.Sheets['請假整理'], '請假統計');
+  XLSX.utils.book_append_sheet(mergedWb, leaveWb.Sheets['Leave_Statistics'], 'Leave Statistics');
 
-  // 2. 加班統計 (加班整理 sheet renamed to 加班統計)
+  // 2. Overtime Statistics
   const otWb = generateOvertimeExcel(state.results);
-  XLSX.utils.book_append_sheet(mergedWb, otWb.Sheets['加班整理'], '加班統計');
+  XLSX.utils.book_append_sheet(mergedWb, otWb.Sheets['Overtime_Statistics'], 'Overtime Statistics');
 
-  // 3. 津貼統計 sheet
+  // 3. Allowance Statistics
   const allowanceWs = generateAllowanceSheet(state.results);
-  XLSX.utils.book_append_sheet(mergedWb, allowanceWs, '津貼統計');
+  XLSX.utils.book_append_sheet(mergedWb, allowanceWs, 'Allowance Statistics');
 
-  // 4. 總請假統計 - 統計表 renamed to 總請假統計 & Jan-Dec monthly sheets (will be hidden)
+  // 4. Total Leave Statistics
   const totalWb = generateTotalLeaveExcel(state.results);
   const totalSheetNames = totalWb.SheetNames;
-  const summarySheetName = totalSheetNames.find(name => name.includes('統計表'));
+  const summarySheetName = totalSheetNames.find(name => name.includes('Summary'));
   if (summarySheetName) {
-    XLSX.utils.book_append_sheet(mergedWb, totalWb.Sheets[summarySheetName], '總請假統計');
+    XLSX.utils.book_append_sheet(mergedWb, totalWb.Sheets[summarySheetName], 'Total Leave Statistics');
   }
 
-  // 5. 特休日數 sheet (Updated with formulas)
+  // 5. PTO Days
   const ptoWs = generateUpdatedPtoSheet(state.results);
-  XLSX.utils.book_append_sheet(mergedWb, ptoWs, '特休日數');
+  XLSX.utils.book_append_sheet(mergedWb, ptoWs, 'PTO Days');
 
   // Append hidden monthly sheets at the end
   for (const sheetName of totalSheetNames) {
@@ -1868,9 +1788,9 @@ function downloadAll() {
     })
   };
 
-  XLSX.writeFile(mergedWb, `${scheduleYear}.${scheduleMonth}合併分析報表_Soluto_&_Care.xlsx`);
+  XLSX.writeFile(mergedWb, `${scheduleYear}.${scheduleMonth}_Consolidated_Report_Soluto_&_Care.xlsx`);
 
-  showToast('合併分析報表已下載！', 'success');
+  showToast('Consolidated Report downloaded successfully!', 'success');
 }
 
 // ==================== UI 事件處理 ====================
