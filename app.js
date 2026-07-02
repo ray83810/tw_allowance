@@ -1207,7 +1207,48 @@ function generateOvertimeExcel(results) {
         row[rightStartColIdx + 1] = formatShiftDate(rec.startDate);
         row[rightStartColIdx + 2] = rec.startTime;
         row[rightStartColIdx + 3] = formatShiftDate(rec.endDate);
-        row[rightStartCofunction generateTotalLeaveExcel(results) {
+        row[rightStartColIdx + 4] = rec.endTime;
+        row[rightStartColIdx + 5] = rec.total;
+      }
+    }
+
+    // Clean undefined cells to empty strings
+    for (let c = 0; c < row.length; c++) {
+      if (row[c] === undefined) row[c] = '';
+    }
+
+    rows.push(row);
+  }
+
+  const ws1 = XLSX.utils.aoa_to_sheet(rows);
+
+  // Column width config
+  const colsConfig = [];
+  colsConfig[0] = { wch: 16 };
+  for (let c = 1; c <= sortedDates.length; c++) {
+    colsConfig[c] = { wch: 8 };
+  }
+  colsConfig[sortedDates.length + 1] = { wch: 10 };
+  colsConfig[sortedDates.length + 2] = { wch: 5 }; // empty divider 1
+  colsConfig[sortedDates.length + 3] = { wch: 5 }; // empty divider 2
+  colsConfig[rightStartColIdx] = { wch: 16 };
+  colsConfig[rightStartColIdx + 1] = { wch: 12 };
+  colsConfig[rightStartColIdx + 2] = { wch: 10 };
+  colsConfig[rightStartColIdx + 3] = { wch: 12 };
+  colsConfig[rightStartColIdx + 4] = { wch: 10 };
+  colsConfig[rightStartColIdx + 5] = { wch: 8 };
+  ws1['!cols'] = colsConfig;
+
+  // Apply borders
+  applyTableBorders(ws1, 0, sortedDates.length + 1, 3, totalRowIdx - 1);
+  applyTableBorders(ws1, rightStartColIdx, rightStartColIdx + 5, 3, 3 + otDetails.length);
+
+  XLSX.utils.book_append_sheet(wb, ws1, 'Overtime_Statistics');
+
+  return wb;
+}
+
+function generateTotalLeaveExcel(results) {
   const wb = XLSX.utils.book_new();
   const { totalStats, ptoSummary, allEmployees, monthlyDetail, scheduleYear, scheduleMonth } = results;
 
