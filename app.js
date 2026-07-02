@@ -985,8 +985,9 @@ function calculateAll() {
 }
 
 // ==================== Excel 生成 ====================
-function applyTableBorders(ws, startCol, endCol, rowStart, rowEnd) {
+function applyTableBorders(ws, startCol, endCol, rowStart, rowEnd, nameCols) {
   if (!ws) return;
+  const cols = nameCols || [];
   for (let r = rowStart; r <= rowEnd; r++) {
     for (let c = startCol; c <= endCol; c++) {
       const cellAddress = XLSX.utils.encode_cell({ r, c });
@@ -1002,6 +1003,13 @@ function applyTableBorders(ws, startCol, endCol, rowStart, rowEnd) {
         left: { style: 'thin', color: { rgb: 'cbd5e1' } },
         right: { style: 'thin', color: { rgb: 'cbd5e1' } }
       };
+      
+      // Apply alignment: left for name columns, center for all others
+      if (cols.includes(c)) {
+        cell.s.alignment = { horizontal: 'left', vertical: 'center' };
+      } else {
+        cell.s.alignment = { horizontal: 'center', vertical: 'center' };
+      }
     }
   }
 }
@@ -1050,9 +1058,6 @@ function generateLeaveExcel(results) {
   const lastColLetter = getColLetter(sortedMonthlyTypes.length + 1);
   totalRow.push({ f: `SUM(${lastColLetter}6:${lastColLetter}${totalRowIdx - 1})` });
   leftRows.push(totalRow);
-
-  leftRows.push(['Applicant', '(All)']);
-  leftRows.push([]);
 
   // Combine Left and Right Tables
   const rows1 = [];
@@ -1108,22 +1113,22 @@ function generateLeaveExcel(results) {
   const colsConfig = [];
   colsConfig[0] = { wch: 16 };
   for (let c = 1; c <= maxLeftCols; c++) {
-    colsConfig[c] = { wch: 12 };
+    colsConfig[c] = { wch: 18 };
   }
   colsConfig[maxLeftCols + 1] = { wch: 10 };
   colsConfig[maxLeftCols + 2] = { wch: 5 }; // empty divider 1
   colsConfig[maxLeftCols + 3] = { wch: 5 }; // empty divider 2
   colsConfig[rightStartColIdx] = { wch: 16 };
-  colsConfig[rightStartColIdx + 1] = { wch: 25 };
+  colsConfig[rightStartColIdx + 1] = { wch: 32 };
   colsConfig[rightStartColIdx + 2] = { wch: 12 };
   colsConfig[rightStartColIdx + 3] = { wch: 12 };
   colsConfig[rightStartColIdx + 4] = { wch: 8 };
   colsConfig[rightStartColIdx + 5] = { wch: 15 };
   ws1['!cols'] = colsConfig;
 
-  // Apply borders
-  applyTableBorders(ws1, 0, sortedMonthlyTypes.length + 1, 3, totalRowIdx - 1);
-  applyTableBorders(ws1, rightStartColIdx, rightStartColIdx + 5, 2, leaveDetails.length + 2);
+  // Apply borders and alignment (name columns are left-aligned, other cells are centered)
+  applyTableBorders(ws1, 0, sortedMonthlyTypes.length + 1, 3, totalRowIdx - 1, [0]);
+  applyTableBorders(ws1, rightStartColIdx, rightStartColIdx + 5, 2, leaveDetails.length + 2, [rightStartColIdx]);
 
   XLSX.utils.book_append_sheet(wb, ws1, 'Leave_Statistics');
 
@@ -1226,22 +1231,22 @@ function generateOvertimeExcel(results) {
   const colsConfig = [];
   colsConfig[0] = { wch: 16 };
   for (let c = 1; c <= sortedDates.length; c++) {
-    colsConfig[c] = { wch: 8 };
+    colsConfig[c] = { wch: 12 };
   }
   colsConfig[sortedDates.length + 1] = { wch: 10 };
   colsConfig[sortedDates.length + 2] = { wch: 5 }; // empty divider 1
   colsConfig[sortedDates.length + 3] = { wch: 5 }; // empty divider 2
   colsConfig[rightStartColIdx] = { wch: 16 };
   colsConfig[rightStartColIdx + 1] = { wch: 12 };
-  colsConfig[rightStartColIdx + 2] = { wch: 10 };
+  colsConfig[rightStartColIdx + 2] = { wch: 12 };
   colsConfig[rightStartColIdx + 3] = { wch: 12 };
-  colsConfig[rightStartColIdx + 4] = { wch: 10 };
+  colsConfig[rightStartColIdx + 4] = { wch: 12 };
   colsConfig[rightStartColIdx + 5] = { wch: 8 };
   ws1['!cols'] = colsConfig;
 
-  // Apply borders
-  applyTableBorders(ws1, 0, sortedDates.length + 1, 3, totalRowIdx - 1);
-  applyTableBorders(ws1, rightStartColIdx, rightStartColIdx + 5, 3, 3 + otDetails.length);
+  // Apply borders and alignment (name columns are left-aligned, other cells are centered)
+  applyTableBorders(ws1, 0, sortedDates.length + 1, 3, totalRowIdx - 1, [0]);
+  applyTableBorders(ws1, rightStartColIdx, rightStartColIdx + 5, 3, 3 + otDetails.length, [rightStartColIdx]);
 
   XLSX.utils.book_append_sheet(wb, ws1, 'Overtime_Statistics');
 
@@ -1312,8 +1317,26 @@ function generateTotalLeaveExcel(results) {
   }
 
   const ws1 = XLSX.utils.aoa_to_sheet(rows);
-  ws1['!cols'] = [{ wch: 16 }, { wch: 8 }, { wch: 8 }, ...Array(12).fill({ wch: 10 }), { wch: 10 }, { wch: 8 }, { wch: 6 }, { wch: 6 }, ...Array(9).fill({ wch: 6 })];
-  applyTableBorders(ws1, 0, 27, 0, allEmployees.length + 2);
+  ws1['!cols'] = [
+    { wch: 16 }, // Col A: Name
+    { wch: 12 }, // Col B: Annual Leave
+    { wch: 12 }, // Col C: Asurion Leave
+    ...Array(12).fill({ wch: 12 }), // Col D-O: Jan-Dec
+    { wch: 15 }, // Col P: Total Used Days
+    { wch: 15 }, // Col Q: Remaining Days
+    { wch: 18 }, // Col R: Sick Leave
+    { wch: 18 }, // Col S: Menstrual Leave
+    { wch: 12 }, // Col T: Sick Leave Paid
+    { wch: 12 }, // Col U: Menstrual Leave Paid
+    { wch: 18 }, // Col V: Personal Leave
+    { wch: 18 }, // Col W: Official Leave
+    { wch: 18 }, // Col X: Marriage Leave
+    { wch: 18 }, // Col Y: Bereavement Leave
+    { wch: 18 }, // Col Z: Family Care Leave
+    { wch: 12 }, // Col AA: Late
+    { wch: 12 }  // Col AB: Absent
+  ];
+  applyTableBorders(ws1, 0, 27, 0, allEmployees.length + 2, [0]);
 
   const lastDay = new Date(scheduleYear, scheduleMonth, 0).getDate();
   const monthName = MONTH_NAMES_EN[scheduleMonth - 1];
@@ -1404,8 +1427,8 @@ function generateTotalLeaveExcel(results) {
     }
 
     const ws = XLSX.utils.aoa_to_sheet(mRows);
-    ws['!cols'] = [{ wch: 20 }, { wch: 52 }, { wch: 16 }, ...Array(11).fill({ wch: 8 })];
-    applyTableBorders(ws, 0, 13, 1, 20);
+    ws['!cols'] = [{ wch: 20 }, { wch: 42 }, { wch: 16 }, ...Array(11).fill({ wch: 18 })];
+    applyTableBorders(ws, 0, 13, 1, 20, [2]);
     XLSX.utils.book_append_sheet(wb, ws, sheetName);
   }
 
@@ -1451,8 +1474,18 @@ function generateUpdatedPtoSheet(results) {
   }
   
   const ws = XLSX.utils.aoa_to_sheet(rows);
-  ws['!cols'] = [{ wch: 16 }, { wch: 8 }, { wch: 8 }, { wch: 8 }, ...Array(12).fill({ wch: 8 }), { wch: 8 }, { wch: 8 }, { wch: 8 }, { wch: 8 }];
-  applyTableBorders(ws, 0, 19, 0, allEmployees.length);
+  ws['!cols'] = [
+    { wch: 16 }, // Col A: English Name
+    { wch: 10 }, // Col B: PTO
+    { wch: 10 }, // Col C: PTO-AL
+    { wch: 10 }, // Col D: TTL
+    ...Array(12).fill({ wch: 8 }), // Col E-P: Jan-Dec
+    { wch: 8 },  // Col Q: Used
+    { wch: 10 }, // Col R: PTO
+    { wch: 10 }, // Col S: PTO-AL
+    { wch: 12 }  // Col T: Remaining
+  ];
+  applyTableBorders(ws, 0, 19, 0, allEmployees.length, [0]);
   return ws;
 }
 
@@ -1490,11 +1523,11 @@ function generateAllowanceSheet(results) {
   }
 
   const ws = XLSX.utils.aoa_to_sheet(rows);
-  ws['!cols'] = [{ wch: 22 }, { wch: 12 }, { wch: 5 }, { wch: 5 }, { wch: 16 }, { wch: 12 }, { wch: 12 }, { wch: 8 }];
+  ws['!cols'] = [{ wch: 42 }, { wch: 16 }, { wch: 5 }, { wch: 5 }, { wch: 16 }, { wch: 12 }, { wch: 12 }, { wch: 8 }];
   
-  // Apply borders
-  applyTableBorders(ws, 0, 1, 0, summary.length + 1);
-  applyTableBorders(ws, 4, 7, 0, details.length);
+  // Apply borders and alignment (name columns are left-aligned, other cells are centered)
+  applyTableBorders(ws, 0, 1, 0, summary.length + 1, [0]);
+  applyTableBorders(ws, 4, 7, 0, details.length, [4]);
   
   return ws;
 }
