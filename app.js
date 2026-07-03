@@ -1125,11 +1125,15 @@ function generateLeaveExcel(results) {
   applyTableBorders(ws1, 0, sortedMonthlyTypes.length + 1, 1, totalRowIdx - 1, [0]);
   applyTableBorders(ws1, rightStartColIdx, rightStartColIdx + 5, 0, leaveDetails.length, [rightStartColIdx]);
 
-  // Make Title Bold
+  // Make Title Bold and Align Left
   if (ws1['A1']) {
     if (!ws1['A1'].s) ws1['A1'].s = {};
     ws1['A1'].s.font = { bold: true };
+    ws1['A1'].s.alignment = { horizontal: 'left', vertical: 'center' };
   }
+
+  // Merge A1 and B1
+  ws1['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 1 } }];
 
   // Force show gridlines
   ws1['!views'] = [{ showGridLines: true }];
@@ -1242,11 +1246,15 @@ function generateOvertimeExcel(results) {
   applyTableBorders(ws1, 0, sortedDates.length + 1, 1, totalRowIdx - 1, [0]);
   applyTableBorders(ws1, rightStartColIdx, rightStartColIdx + 3, 0, otDetails.length, [rightStartColIdx]);
 
-  // Make Title Bold
+  // Make Title Bold and Align Left
   if (ws1['A1']) {
     if (!ws1['A1'].s) ws1['A1'].s = {};
     ws1['A1'].s.font = { bold: true };
+    ws1['A1'].s.alignment = { horizontal: 'left', vertical: 'center' };
   }
+
+  // Merge A1 and B1
+  ws1['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 1 } }];
 
   // Force show gridlines
   ws1['!views'] = [{ showGridLines: true }];
