@@ -998,10 +998,10 @@ function applyTableBorders(ws, startCol, endCol, rowStart, rowEnd, nameCols) {
       }
       if (!cell.s) cell.s = {};
       cell.s.border = {
-        top: { style: 'thin', color: { rgb: 'cbd5e1' } },
-        bottom: { style: 'thin', color: { rgb: 'cbd5e1' } },
-        left: { style: 'thin', color: { rgb: 'cbd5e1' } },
-        right: { style: 'thin', color: { rgb: 'cbd5e1' } }
+        top: { style: 'thin', color: { rgb: '94A3B8' } },
+        bottom: { style: 'thin', color: { rgb: '94A3B8' } },
+        left: { style: 'thin', color: { rgb: '94A3B8' } },
+        right: { style: 'thin', color: { rgb: '94A3B8' } }
       };
       
       // Apply alignment: left for name columns, center for all others
@@ -1912,7 +1912,7 @@ function downloadAll() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${scheduleYear}.${scheduleMonth}_Consolidated_Report_Soluto_&_Care.xlsx`;
+    a.download = `${scheduleYear}.${scheduleMonth}_Consolidated_Report_Soluto_&_Care_new.xlsx`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
