@@ -1028,8 +1028,6 @@ function generateLeaveExcel(results) {
 
   // Build left-hand side rows
   const leftRows = [];
-  leftRows.push(['Month', `${scheduleYear}/${scheduleMonth}/1`]);
-  leftRows.push([]);
   leftRows.push(['Monthly Leave Statistics (Unit: Day)']);
   
   const monthlyHdr = ['Name', ...sortedMonthlyTypes.map(t => LEAVE_TYPE_MAP[t].label.replace('\n', ' ')), 'Total'];
@@ -1038,7 +1036,7 @@ function generateLeaveExcel(results) {
   const empWithLeave = allEmployees.filter(e => monthlyLeave[e]);
   for (let i = 0; i < empWithLeave.length; i++) {
     const emp = empWithLeave[i];
-    const rowIdx = i + 6; // excel row index (1-based, starts at row 6)
+    const rowIdx = i + 3; // excel row index (1-based, starts at row 3)
     const row = [emp];
     for (const lt of sortedMonthlyTypes) {
       row.push(monthlyLeave[emp]?.[lt] || '');
@@ -1049,22 +1047,21 @@ function generateLeaveExcel(results) {
   }
 
   // Totals row for monthly summary
-  const totalRowIdx = empWithLeave.length + 6;
+  const totalRowIdx = empWithLeave.length + 3;
   const totalRow = ['Total'];
   for (let c = 2; c <= sortedMonthlyTypes.length + 1; c++) {
     const colLetter = getColLetter(c);
-    totalRow.push({ f: `SUM(${colLetter}6:${colLetter}${totalRowIdx - 1})` });
+    totalRow.push({ f: `SUM(${colLetter}3:${colLetter}${totalRowIdx - 1})` });
   }
   const lastColLetter = getColLetter(sortedMonthlyTypes.length + 1);
-  totalRow.push({ f: `SUM(${lastColLetter}6:${lastColLetter}${totalRowIdx - 1})` });
+  totalRow.push({ f: `SUM(${lastColLetter}3:${lastColLetter}${totalRowIdx - 1})` });
   leftRows.push(totalRow);
 
   // Combine Left and Right Tables
   const rows1 = [];
-  rows1.push([]); // Row 1 is empty
 
   const maxLeftCols = sortedMonthlyTypes.length;
-  const maxLen = Math.max(leftRows.length, leaveDetails.length + 4);
+  const maxLen = Math.max(leftRows.length, leaveDetails.length + 1);
   const rightStartColIdx = maxLeftCols + 4; // e.g. max 5 types -> index 9 (Column J)
 
   for (let i = 0; i < maxLen; i++) {
@@ -1078,25 +1075,23 @@ function generateLeaveExcel(results) {
       }
     }
 
-    // Fill right table (starts at Row 4 index 2 of leftRows)
-    if (i >= 2) {
-      const rightRowIdx = i - 2; // 0 for Row 4 (Excel Row 4)
-      if (rightRowIdx === 0) {
-        row[rightStartColIdx] = 'Name';
-        row[rightStartColIdx + 1] = 'Leave Type';
-        row[rightStartColIdx + 2] = 'Start Date';
-        row[rightStartColIdx + 3] = 'End Date';
-        row[rightStartColIdx + 4] = 'Total';
-        row[rightStartColIdx + 5] = 'Time Period';
-      } else if (rightRowIdx - 1 < leaveDetails.length) {
-        const rec = leaveDetails[rightRowIdx - 1];
-        row[rightStartColIdx] = rec.name;
-        row[rightStartColIdx + 1] = LEAVE_TYPE_MAP[rec.leaveType]?.label.replace('\n', ' ') || rec.leaveType;
-        row[rightStartColIdx + 2] = formatShiftDate(rec.startDate);
-        row[rightStartColIdx + 3] = formatShiftDate(rec.endDate);
-        row[rightStartColIdx + 4] = rec.total;
-        row[rightStartColIdx + 5] = rec.timeRange;
-      }
+    // Fill right table (starts at Row 1 index 0 of leftRows)
+    const rightRowIdx = i; // 0 for Row 1
+    if (rightRowIdx === 0) {
+      row[rightStartColIdx] = 'Name';
+      row[rightStartColIdx + 1] = 'Leave Type';
+      row[rightStartColIdx + 2] = 'Start Date';
+      row[rightStartColIdx + 3] = 'End Date';
+      row[rightStartColIdx + 4] = 'Total';
+      row[rightStartColIdx + 5] = 'Time Period';
+    } else if (rightRowIdx - 1 < leaveDetails.length) {
+      const rec = leaveDetails[rightRowIdx - 1];
+      row[rightStartColIdx] = rec.name;
+      row[rightStartColIdx + 1] = LEAVE_TYPE_MAP[rec.leaveType]?.label.replace('\n', ' ') || rec.leaveType;
+      row[rightStartColIdx + 2] = formatShiftDate(rec.startDate);
+      row[rightStartColIdx + 3] = formatShiftDate(rec.endDate);
+      row[rightStartColIdx + 4] = rec.total;
+      row[rightStartColIdx + 5] = rec.timeRange;
     }
 
     // Clean undefined cells to empty strings
@@ -1127,13 +1122,13 @@ function generateLeaveExcel(results) {
   ws1['!cols'] = colsConfig;
 
   // Apply borders and alignment (name columns are left-aligned, other cells are centered)
-  applyTableBorders(ws1, 0, sortedMonthlyTypes.length + 1, 3, totalRowIdx - 1, [0]);
-  applyTableBorders(ws1, rightStartColIdx, rightStartColIdx + 5, 2, leaveDetails.length + 2, [rightStartColIdx]);
+  applyTableBorders(ws1, 0, sortedMonthlyTypes.length + 1, 1, totalRowIdx - 1, [0]);
+  applyTableBorders(ws1, rightStartColIdx, rightStartColIdx + 5, 0, leaveDetails.length, [rightStartColIdx]);
 
   // Make Title Bold
-  if (ws1['A4']) {
-    if (!ws1['A4'].s) ws1['A4'].s = {};
-    ws1['A4'].s.font = { bold: true };
+  if (ws1['A1']) {
+    if (!ws1['A1'].s) ws1['A1'].s = {};
+    ws1['A1'].s.font = { bold: true };
   }
 
   // Force show gridlines
@@ -1154,8 +1149,6 @@ function generateOvertimeExcel(results) {
 
   // Build left-hand side rows
   const leftRows = [];
-  leftRows.push([]);
-  leftRows.push([]);
   leftRows.push(['Monthly Overtime Statistics (Unit: Hour)']);
 
   // Header row with dates
@@ -1170,7 +1163,7 @@ function generateOvertimeExcel(results) {
   const lastDateColLetter = getColLetter(sortedDates.length + 1);
   for (let i = 0; i < empsWithOT.length; i++) {
     const emp = empsWithOT[i];
-    const rowIdx = i + 5;
+    const rowIdx = i + 3; // excel row index (1-based, starts at row 3)
     const row = [emp];
     for (const d of sortedDates) {
       row.push(otStats[emp]?.[d] || '');
@@ -1180,18 +1173,18 @@ function generateOvertimeExcel(results) {
   }
 
   // Totals Row (Formula-based column sums)
-  const totalRowIdx = empsWithOT.length + 5;
+  const totalRowIdx = empsWithOT.length + 3;
   const totalRow = ['Total'];
   for (let c = 2; c <= sortedDates.length + 1; c++) {
     const colLetter = getColLetter(c);
-    totalRow.push({ f: `SUM(${colLetter}5:${colLetter}${totalRowIdx - 1})` });
+    totalRow.push({ f: `SUM(${colLetter}3:${colLetter}${totalRowIdx - 1})` });
   }
-  totalRow.push({ f: `SUM(${lastDateColLetter}5:${lastDateColLetter}${totalRowIdx - 1})` });
+  totalRow.push({ f: `SUM(${lastDateColLetter}3:${lastDateColLetter}${totalRowIdx - 1})` });
   leftRows.push(totalRow);
 
   // Combine Left and Right Tables
   const rows = [];
-  const maxLen = Math.max(leftRows.length, otDetails.length + 4);
+  const maxLen = Math.max(leftRows.length, otDetails.length + 1);
   const rightStartColIdx = sortedDates.length + 4; // e.g. Col A to ... plus 2 empty dividers
 
   for (let i = 0; i < maxLen; i++) {
@@ -1205,21 +1198,19 @@ function generateOvertimeExcel(results) {
       }
     }
 
-    // Fill right table (starts at Row 4 index 3 of leftRows)
-    if (i >= 3) {
-      const rightRowIdx = i - 3; // 0 for Row 4 (Excel Row 4)
-      if (rightRowIdx === 0) {
-        row[rightStartColIdx] = 'Name';
-        row[rightStartColIdx + 1] = 'Start Date';
-        row[rightStartColIdx + 2] = 'Start Time';
-        row[rightStartColIdx + 3] = 'Total';
-      } else if (rightRowIdx - 1 < otDetails.length) {
-        const rec = otDetails[rightRowIdx - 1];
-        row[rightStartColIdx] = rec.name;
-        row[rightStartColIdx + 1] = formatShiftDate(rec.startDate);
-        row[rightStartColIdx + 2] = rec.startTime;
-        row[rightStartColIdx + 3] = rec.total;
-      }
+    // Fill right table (starts at Row 1 index 0 of leftRows)
+    const rightRowIdx = i; // 0 for Row 1
+    if (rightRowIdx === 0) {
+      row[rightStartColIdx] = 'Name';
+      row[rightStartColIdx + 1] = 'Start Date';
+      row[rightStartColIdx + 2] = 'Start Time';
+      row[rightStartColIdx + 3] = 'Total';
+    } else if (rightRowIdx - 1 < otDetails.length) {
+      const rec = otDetails[rightRowIdx - 1];
+      row[rightStartColIdx] = rec.name;
+      row[rightStartColIdx + 1] = formatShiftDate(rec.startDate);
+      row[rightStartColIdx + 2] = rec.startTime;
+      row[rightStartColIdx + 3] = rec.total;
     }
 
     // Clean undefined cells to empty strings
@@ -1248,13 +1239,13 @@ function generateOvertimeExcel(results) {
   ws1['!cols'] = colsConfig;
 
   // Apply borders and alignment (name columns are left-aligned, other cells are centered)
-  applyTableBorders(ws1, 0, sortedDates.length + 1, 3, totalRowIdx - 1, [0]);
-  applyTableBorders(ws1, rightStartColIdx, rightStartColIdx + 3, 3, 3 + otDetails.length, [rightStartColIdx]);
+  applyTableBorders(ws1, 0, sortedDates.length + 1, 1, totalRowIdx - 1, [0]);
+  applyTableBorders(ws1, rightStartColIdx, rightStartColIdx + 3, 0, otDetails.length, [rightStartColIdx]);
 
   // Make Title Bold
-  if (ws1['A3']) {
-    if (!ws1['A3'].s) ws1['A3'].s = {};
-    ws1['A3'].s.font = { bold: true };
+  if (ws1['A1']) {
+    if (!ws1['A1'].s) ws1['A1'].s = {};
+    ws1['A1'].s.font = { bold: true };
   }
 
   // Force show gridlines
