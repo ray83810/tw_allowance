@@ -1908,11 +1908,14 @@ function downloadAll() {
       zip.file(file, updatedContent);
     }
     
+    const formattedMonth = String(scheduleMonth).padStart(2, '0');
+    const filename = `Taiwan Care Team_${scheduleYear}${formattedMonth}.xlsx`;
+
     const blob = await zip.generateAsync({ type: 'blob' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${scheduleYear}.${scheduleMonth}_Consolidated_Report_Soluto_&_Care_new.xlsx`;
+    a.download = filename;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
