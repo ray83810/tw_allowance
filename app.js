@@ -1130,6 +1130,15 @@ function generateLeaveExcel(results) {
   applyTableBorders(ws1, 0, sortedMonthlyTypes.length + 1, 3, totalRowIdx - 1, [0]);
   applyTableBorders(ws1, rightStartColIdx, rightStartColIdx + 5, 2, leaveDetails.length + 2, [rightStartColIdx]);
 
+  // Make Title Bold
+  if (ws1['A4']) {
+    if (!ws1['A4'].s) ws1['A4'].s = {};
+    ws1['A4'].s.font = { bold: true };
+  }
+
+  // Force show gridlines
+  ws1['!views'] = [{ showGridLines: true }];
+
   XLSX.utils.book_append_sheet(wb, ws1, 'Leave_Statistics');
 
   return wb;
@@ -1203,17 +1212,13 @@ function generateOvertimeExcel(results) {
         row[rightStartColIdx] = 'Name';
         row[rightStartColIdx + 1] = 'Start Date';
         row[rightStartColIdx + 2] = 'Start Time';
-        row[rightStartColIdx + 3] = 'End Date';
-        row[rightStartColIdx + 4] = 'End Time';
-        row[rightStartColIdx + 5] = 'Total';
+        row[rightStartColIdx + 3] = 'Total';
       } else if (rightRowIdx - 1 < otDetails.length) {
         const rec = otDetails[rightRowIdx - 1];
         row[rightStartColIdx] = rec.name;
         row[rightStartColIdx + 1] = formatShiftDate(rec.startDate);
         row[rightStartColIdx + 2] = rec.startTime;
-        row[rightStartColIdx + 3] = formatShiftDate(rec.endDate);
-        row[rightStartColIdx + 4] = rec.endTime;
-        row[rightStartColIdx + 5] = rec.total;
+        row[rightStartColIdx + 3] = rec.total;
       }
     }
 
@@ -1239,14 +1244,21 @@ function generateOvertimeExcel(results) {
   colsConfig[rightStartColIdx] = { wch: 16 };
   colsConfig[rightStartColIdx + 1] = { wch: 12 };
   colsConfig[rightStartColIdx + 2] = { wch: 12 };
-  colsConfig[rightStartColIdx + 3] = { wch: 12 };
-  colsConfig[rightStartColIdx + 4] = { wch: 12 };
-  colsConfig[rightStartColIdx + 5] = { wch: 8 };
+  colsConfig[rightStartColIdx + 3] = { wch: 8 };
   ws1['!cols'] = colsConfig;
 
   // Apply borders and alignment (name columns are left-aligned, other cells are centered)
   applyTableBorders(ws1, 0, sortedDates.length + 1, 3, totalRowIdx - 1, [0]);
-  applyTableBorders(ws1, rightStartColIdx, rightStartColIdx + 5, 3, 3 + otDetails.length, [rightStartColIdx]);
+  applyTableBorders(ws1, rightStartColIdx, rightStartColIdx + 3, 3, 3 + otDetails.length, [rightStartColIdx]);
+
+  // Make Title Bold
+  if (ws1['A3']) {
+    if (!ws1['A3'].s) ws1['A3'].s = {};
+    ws1['A3'].s.font = { bold: true };
+  }
+
+  // Force show gridlines
+  ws1['!views'] = [{ showGridLines: true }];
 
   XLSX.utils.book_append_sheet(wb, ws1, 'Overtime_Statistics');
 
@@ -1337,6 +1349,7 @@ function generateTotalLeaveExcel(results) {
     { wch: 12 }  // Col AB: Absent
   ];
   applyTableBorders(ws1, 0, 27, 0, allEmployees.length + 2, [0]);
+  ws1['!views'] = [{ showGridLines: true }];
 
   const lastDay = new Date(scheduleYear, scheduleMonth, 0).getDate();
   const monthName = MONTH_NAMES_EN[scheduleMonth - 1];
@@ -1429,6 +1442,7 @@ function generateTotalLeaveExcel(results) {
     const ws = XLSX.utils.aoa_to_sheet(mRows);
     ws['!cols'] = [{ wch: 20 }, { wch: 42 }, { wch: 16 }, ...Array(11).fill({ wch: 18 })];
     applyTableBorders(ws, 0, 13, 1, 20, [2]);
+    ws['!views'] = [{ showGridLines: true }];
     XLSX.utils.book_append_sheet(wb, ws, sheetName);
   }
 
@@ -1486,6 +1500,7 @@ function generateUpdatedPtoSheet(results) {
     { wch: 12 }  // Col T: Remaining
   ];
   applyTableBorders(ws, 0, 19, 0, allEmployees.length, [0]);
+  ws['!views'] = [{ showGridLines: true }];
   return ws;
 }
 
@@ -1495,7 +1510,7 @@ function generateAllowanceSheet(results) {
 
   const rows = [];
   // Row 1: Headers
-  rows.push(['Monthly Allowance Statistics (Unit: Day)', 'Night Shift Days', '', '', 'Name', 'Start Date', 'End Date', 'Total']);
+  rows.push(['Monthly Allowance Statistics (Unit: Day)', 'Night Shift Days (400 NTD/Day)', '', '', 'Name', 'Start Date', 'End Date', 'Total (400 NTD/Day)']);
 
   const maxRows = Math.max(summary.length + 1, details.length); // excluding header
 
@@ -1523,11 +1538,20 @@ function generateAllowanceSheet(results) {
   }
 
   const ws = XLSX.utils.aoa_to_sheet(rows);
-  ws['!cols'] = [{ wch: 42 }, { wch: 16 }, { wch: 5 }, { wch: 5 }, { wch: 16 }, { wch: 12 }, { wch: 12 }, { wch: 8 }];
+  ws['!cols'] = [{ wch: 42 }, { wch: 32 }, { wch: 5 }, { wch: 5 }, { wch: 16 }, { wch: 12 }, { wch: 12 }, { wch: 22 }];
   
   // Apply borders and alignment (name columns are left-aligned, other cells are centered)
   applyTableBorders(ws, 0, 1, 0, summary.length + 1, [0]);
   applyTableBorders(ws, 4, 7, 0, details.length, [4]);
+
+  // Make Title Bold
+  if (ws['A1']) {
+    if (!ws['A1'].s) ws['A1'].s = {};
+    ws['A1'].s.font = { bold: true };
+  }
+
+  // Force show gridlines
+  ws['!views'] = [{ showGridLines: true }];
   
   return ws;
 }
@@ -1785,7 +1809,7 @@ function renderAllowancePreview(results) {
   html += '<div class="allowance-col-summary">';
   html += '<h3>🌙 津貼統計 (以天數計)</h3>';
   
-  const summaryHeaders = ['客服人員', '小夜天數'];
+  const summaryHeaders = ['客服人員', '小夜天數 (一天400 NTD)'];
   const summaryRows = summary.map(item => [item.name, item.days]);
   const totalDays = summary.reduce((sum, item) => sum + item.days, 0);
   const summaryFooter = ['Total', totalDays];
@@ -1797,7 +1821,7 @@ function renderAllowancePreview(results) {
   html += '<div class="allowance-col-details">';
   html += '<h3>📋 小夜班明細</h3>';
   
-  const detailHeaders = ['Name', 'Start Date', 'End Date', 'Total'];
+  const detailHeaders = ['Name', 'Start Date', 'End Date', 'Total (一天400 NTD)'];
   const detailRows = details.map(item => [
     item.name,
     formatShiftDate(item.startDate),
@@ -2038,40 +2062,97 @@ function renderPersonalCard(empName, isExport = false) {
     </div>
   `;
 
-  // Details 1: Please-leave (Only display if there are records)
+  // Details 1: Please-leave
+  html += `
+    <div class="card-detail-section">
+        <div class="section-title">📋 請假明細</div>
+  `;
   if (allEmployeeLeaves.length > 0) {
     html += `
-      <div class="card-detail-section">
-          <div class="section-title">📋 請假明細</div>
-          <table>
-              <thead>
-                  <tr>
-                      <th>假別</th>
-                      <th>開始時間</th>
-                      <th>結束時間</th>
-                      <th>總計(天)</th>
-                      <th>時間段</th>
-                  </tr>
-              </thead>
-              <tbody>
+        <table>
+            <thead>
+                <tr>
+                    <th>假別</th>
+                    <th>開始時間</th>
+                    <th>結束時間</th>
+                    <th>總計(天)</th>
+                    <th>時間段</th>
+                    ${!isExport ? '<th>操作</th>' : ''}
+                </tr>
+            </thead>
+            <tbody>
     `;
     for (const rec of allEmployeeLeaves) {
+      const startStr = formatShiftDate(rec.startDate);
+      const endStr = formatShiftDate(rec.endDate);
       html += `
-                  <tr>
-                      <td>${rec.leaveType}</td>
-                      <td>${formatShiftDate(rec.startDate)}</td>
-                      <td>${formatShiftDate(rec.endDate)}</td>
-                      <td>${rec.total}</td>
-                      <td>${rec.timeRange || ''}</td>
-                  </tr>
+                <tr>
+                    <td>${rec.leaveType}</td>
+                    <td>${startStr}</td>
+                    <td>${endStr}</td>
+                    <td>${rec.total}</td>
+                    <td>${rec.timeRange || ''}</td>
+                    ${!isExport ? `
+                    <td>
+                        <button class="btn-delete-leave" 
+                                data-type="${rec.leaveType}"
+                                data-start="${rec.startDate.getTime()}"
+                                data-end="${rec.endDate.getTime()}"
+                                data-days="${rec.total}"
+                                data-range="${rec.timeRange || ''}"
+                                style="padding:2px 8px; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3); border-radius:4px; color:#ef4444; cursor:pointer;">
+                            刪除
+                        </button>
+                    </td>
+                    ` : ''}
+                </tr>
       `;
     }
     html += `
-              </tbody>
-          </table>
+            </tbody>
+        </table>
+    `;
+  } else {
+    html += `<p style="opacity: 0.5; font-size: 14px; margin-bottom: 8px;">無請假紀錄</p>`;
+  }
+
+  if (!isExport) {
+    html += `
+      <button id="btn-show-add-leave" style="margin-top:12px; padding:6px 12px; background:rgba(124, 92, 255, 0.1); border:1px dashed #7c5cff; border-radius:4px; color:#7c5cff; cursor:pointer; font-weight:500; display:flex; align-items:center; gap:6px;">
+          <span>➕</span> 新增請假明細
+      </button>
+      <div id="add-leave-form-container" style="display:none; margin-top:12px; padding:16px; border:1px dashed rgba(255,255,255,0.15); border-radius:8px; background:rgba(255,255,255,0.02);">
+          <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap:12px; margin-bottom:12px;">
+              <div>
+                  <label style="font-size:12px; opacity:0.6; display:block; margin-bottom:4px;">假別</label>
+                  <select id="new-leave-type" style="width:100%; padding:6px; background:#121220; border:1px solid rgba(255,255,255,0.15); border-radius:4px; color:#fff;">
+                  </select>
+              </div>
+              <div>
+                  <label style="font-size:12px; opacity:0.6; display:block; margin-bottom:4px;">開始日期</label>
+                  <input type="date" id="new-leave-start" style="width:100%; padding:6px; background:#121220; border:1px solid rgba(255,255,255,0.15); border-radius:4px; color:#fff;">
+              </div>
+              <div>
+                  <label style="font-size:12px; opacity:0.6; display:block; margin-bottom:4px;">結束日期</label>
+                  <input type="date" id="new-leave-end" style="width:100%; padding:6px; background:#121220; border:1px solid rgba(255,255,255,0.15); border-radius:4px; color:#fff;">
+              </div>
+              <div>
+                  <label style="font-size:12px; opacity:0.6; display:block; margin-bottom:4px;">總計(天)</label>
+                  <input type="number" id="new-leave-days" step="0.5" min="0.5" value="1" style="width:100%; padding:6px; background:#121220; border:1px solid rgba(255,255,255,0.15); border-radius:4px; color:#fff;">
+              </div>
+              <div>
+                  <label style="font-size:12px; opacity:0.6; display:block; margin-bottom:4px;">時間段</label>
+                  <input type="text" id="new-leave-range" placeholder="e.g. 08:00-17:00" style="width:100%; padding:6px; background:#121220; border:1px solid rgba(255,255,255,0.15); border-radius:4px; color:#fff;">
+              </div>
+          </div>
+          <div style="display:flex; justify-content:flex-end; gap:8px;">
+              <button id="btn-cancel-add-leave" style="padding:6px 12px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:4px; color:#fff; cursor:pointer;">取消</button>
+              <button id="btn-save-new-leave" style="padding:6px 12px; background:#7c5cff; border:none; border-radius:4px; color:#fff; cursor:pointer;">確認新增</button>
+          </div>
       </div>
     `;
   }
+  html += `</div>`;
 
   // Details 2: Overtime (Only display if there are records)
   if (ots.length > 0) {
@@ -2083,8 +2164,6 @@ function renderPersonalCard(empName, isExport = false) {
                   <tr>
                       <th>開始日期</th>
                       <th>開始時間</th>
-                      <th>結束日期</th>
-                      <th>結束時間</th>
                       <th>時數</th>
                   </tr>
               </thead>
@@ -2095,8 +2174,6 @@ function renderPersonalCard(empName, isExport = false) {
                   <tr>
                       <td>${formatShiftDate(rec.startDate)}</td>
                       <td>${rec.startTime || ''}</td>
-                      <td>${formatShiftDate(rec.endDate)}</td>
-                      <td>${rec.endTime || ''}</td>
                       <td>${rec.total}</td>
                   </tr>
       `;
@@ -2169,6 +2246,95 @@ function renderPersonalCard(empName, isExport = false) {
     if (textarea) {
       textarea.addEventListener('input', (e) => {
         state.remarks[empName] = e.target.value;
+      });
+    }
+
+    // Bind Delete buttons
+    card.querySelectorAll('.btn-delete-leave').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const type = btn.dataset.type;
+        const start = parseInt(btn.dataset.start);
+        const end = parseInt(btn.dataset.end);
+        const days = parseFloat(btn.dataset.days);
+        const range = btn.dataset.range;
+        
+        // Find and remove from state.parsed.origLeaves
+        const idx = state.parsed.origLeaves.findIndex(rec => {
+          return getCanonicalName(rec.applicant, state.results.allEmployees) === empName &&
+                 rec.leaveType === type &&
+                 rec.startDate.getTime() === start &&
+                 rec.endDate.getTime() === end &&
+                 rec.days === days &&
+                 (rec.timeRange || '') === range;
+        });
+        if (idx !== -1) {
+          state.parsed.origLeaves.splice(idx, 1);
+          state.results = calculateAll();
+          renderPreview(state.results);
+          renderPersonalCard(empName);
+          showToast('請假明細已刪除！', 'success');
+        }
+      });
+    });
+
+    // Bind Show Add form button
+    const btnShow = card.querySelector('#btn-show-add-leave');
+    const addForm = card.querySelector('#add-leave-form-container');
+    if (btnShow && addForm) {
+      btnShow.addEventListener('click', () => {
+        addForm.style.display = 'block';
+        btnShow.style.display = 'none';
+        
+        // Populate leave type options
+        const selectType = card.querySelector('#new-leave-type');
+        if (selectType) {
+          selectType.innerHTML = Object.keys(LEAVE_TYPE_MAP).map(key => {
+            return `<option value="${key}">${LEAVE_TYPE_MAP[key].label.replace('\n', ' ')}</option>`;
+          }).join('');
+        }
+      });
+    }
+
+    // Bind Cancel button
+    const btnCancel = card.querySelector('#btn-cancel-add-leave');
+    if (btnCancel && btnShow && addForm) {
+      btnCancel.addEventListener('click', () => {
+        addForm.style.display = 'none';
+        btnShow.style.display = 'flex';
+      });
+    }
+
+    // Bind Save button
+    const btnSave = card.querySelector('#btn-save-new-leave');
+    if (btnSave && addForm) {
+      btnSave.addEventListener('click', () => {
+        const type = card.querySelector('#new-leave-type').value;
+        const startStr = card.querySelector('#new-leave-start').value;
+        const endStr = card.querySelector('#new-leave-end').value;
+        const days = parseFloat(card.querySelector('#new-leave-days').value);
+        const range = card.querySelector('#new-leave-range').value;
+        
+        if (!startStr || !endStr) {
+          showToast('請填寫開始與結束日期！', 'error');
+          return;
+        }
+        
+        const newRec = {
+          applicant: empName,
+          leaveType: type,
+          startDate: new Date(startStr + 'T00:00:00'),
+          endDate: new Date(endStr + 'T00:00:00'),
+          days: days,
+          timeRange: range
+        };
+        newRec.startDate.__isNormalized = true;
+        newRec.endDate.__isNormalized = true;
+        
+        state.parsed.origLeaves.push(newRec);
+        state.results = calculateAll();
+        renderPreview(state.results);
+        renderPersonalCard(empName);
+        showToast('請假明細已新增！', 'success');
       });
     }
   }
