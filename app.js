@@ -1886,9 +1886,52 @@ function downloadAll() {
     })
   };
 
-  XLSX.writeFile(mergedWb, `${scheduleYear}.${scheduleMonth}_Consolidated_Report_Soluto_&_Care.xlsx`);
+  const wbout = XLSX.write(mergedWb, { bookType: 'xlsx', type: 'array' });
 
-  showToast('Consolidated Report downloaded successfully!', 'success');
+  JSZip.loadAsync(wbout).then(async function(zip) {
+    const files = Object.keys(zip.files).filter(name => name.startsWith('xl/worksheets/sheet'));
+    for (const file of files) {
+      const content = await zip.file(file).async('string');
+      const parser = new DOMParser();
+      const xmlDoc = parser.parseFromString(content, 'application/xml');
+      
+      let sheetView = xmlDoc.getElementsByTagNameNS('*', 'sheetView')[0];
+      if (!sheetView) {
+        let sheetViews = xmlDoc.getElementsByTagNameNS('*', 'sheetViews')[0];
+        if (!sheetViews) {
+          sheetViews = xmlDoc.createElementNS(xmlDoc.documentElement.namespaceURI, 'sheetViews');
+          const worksheet = xmlDoc.documentElement;
+          const sheetData = xmlDoc.getElementsByTagNameNS('*', 'sheetData')[0];
+          if (worksheet && sheetData) {
+            worksheet.insertBefore(sheetViews, sheetData);
+          }
+        }
+        sheetView = xmlDoc.createElementNS(xmlDoc.documentElement.namespaceURI, 'sheetView');
+        sheetView.setAttribute('workbookViewId', '0');
+        sheetViews.appendChild(sheetView);
+      }
+      sheetView.setAttribute('showGridLines', '1');
+      
+      const serializer = new XMLSerializer();
+      const updatedContent = serializer.serializeToString(xmlDoc);
+      zip.file(file, updatedContent);
+    }
+    
+    const blob = await zip.generateAsync({ type: 'blob' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${scheduleYear}.${scheduleMonth}_Consolidated_Report_Soluto_&_Care.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    showToast('Consolidated Report downloaded successfully!', 'success');
+  }).catch(err => {
+    console.error(err);
+    showToast('Failed to generate Excel file with grid lines.', 'error');
+  });
 }
 
 // ==================== UI 事件處理 ====================
