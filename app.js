@@ -1732,7 +1732,6 @@ function renderLeavePreview(results) {
 function renderOvertimePreview(results) {
   const { otStats, otDates, allEmployees, otDetails } = results;
   const emps = allEmployees.filter(e => otStats[e]);
-  const sorted = otDates.sort();
 
   let html = '<h3>⏰ 加班統計</h3>';
   html += '<div class="preview-layout">';
@@ -1740,27 +1739,15 @@ function renderOvertimePreview(results) {
   // 1. Left Table: Monthly Summary
   html += '<div class="preview-col-summary">';
   html += '<h4>當月加班統計 (小時)</h4>';
-  const headers = ['員工', ...sorted.map(d => d.slice(5)), '總計'];
+  const headers = ['Name', 'Overtime(Hour)'];
   const rows = [];
+  let teamTotal = 0;
   for (const emp of emps) {
-    const row = [emp];
-    let total = 0;
-    for (const d of sorted) {
-      const val = otStats[emp]?.[d] || 0;
-      row.push(val);
-      total += val;
-    }
-    row.push(total);
-    rows.push(row);
+    const totalHours = Object.values(otStats[emp]).reduce((acc, curr) => acc + curr, 0);
+    rows.push([emp, totalHours]);
+    teamTotal += totalHours;
   }
-
-  const totals = ['總計'];
-  for (const d of sorted) {
-    let sum = 0;
-    for (const emp of emps) sum += (otStats[emp]?.[d] || 0);
-    totals.push(sum);
-  }
-  totals.push(rows.reduce((s, r) => s + r[r.length - 1], 0));
+  const totals = ['Team Total', teamTotal];
 
   html += createTable(headers, rows, totals);
   html += '</div>';
@@ -1768,13 +1755,11 @@ function renderOvertimePreview(results) {
   // 2. Right Table: Details
   html += '<div class="preview-col-details">';
   html += '<h4>加班明細</h4>';
-  const detailHeaders = ['Name', 'Start Date', 'Start Time', 'End Date', 'End Time', 'Total'];
+  const detailHeaders = ['Name', 'Start Date', 'Start Time', 'Hour'];
   const detailRows = otDetails.map(rec => [
     rec.name,
     formatShiftDate(rec.startDate),
     rec.startTime,
-    formatShiftDate(rec.endDate),
-    rec.endTime,
     rec.total
   ]);
   html += createTable(detailHeaders, detailRows, null);
